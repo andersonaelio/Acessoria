@@ -1,0 +1,1297 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phosphoros · Direção C (concept)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 110'%3E%3Crect width='120' height='110' rx='26' fill='%231B7A57'/%3E%3Cpath d='M28 56 Q60 28 92 56' stroke='%23fff' stroke-width='7' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='60' cy='54' r='9' stroke='%23fff' stroke-width='7' fill='none'/%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    /* base neutra fria + quente o suficiente pra não ficar clínica */
+    --bg:#F6F7F9; --surface:#FFFFFF; --surface-2:#FBFBFC;
+    --ink:#13161C; --ink-2:#3D434E; --muted:#727A87; --faint:#9AA1AD;
+    --line:#E8EAEF; --line-2:#F0F1F4;
+    /* DNA Phosphoros, mais saturado e intencional */
+    --accent:#1B7A57; --accent-deep:#135A40; --accent-soft:#DBEDE3; --accent-tint:#EFF7F2;
+    /* sidebar escura — herda o DNA dark */
+    --nav-bg:#0E1116; --nav-ink:#E7E4DD; --nav-muted:#7E8694; --nav-line:#1E232C; --nav-active:#1A1F28;
+    /* semânticos sóbrios */
+    --green:#2E7D5B; --green-soft:#E4F0EA; --amber:#B07514; --amber-soft:#F7EEDD; --danger:#C2543B; --danger-soft:#F8E7E1;
+    --radius:12px; --radius-sm:9px;
+    --shadow:0 1px 1px rgba(16,20,28,.03);
+    --shadow-pop:0 16px 40px -18px rgba(16,20,28,.30);
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Hanken Grotesk",system-ui,sans-serif; font-size:14px; line-height:1.5;
+    -webkit-font-smoothing:antialiased; letter-spacing:-.005em;
+  }
+  .num{font-family:var(--mono); font-feature-settings:"tnum" 1; letter-spacing:-.02em}
+  button{font-family:inherit}
+  ::selection{background:var(--accent-soft)}
+
+  /* ===================== shell ===================== */
+  .app{display:grid; grid-template-columns:236px 1fr; min-height:100vh}
+
+  /* ---- sidebar ---- */
+  .nav{background:var(--nav-bg); color:var(--nav-ink); display:flex; flex-direction:column; padding:18px 14px; position:sticky; top:0; height:100vh}
+  .brand{display:flex; align-items:center; gap:11px; padding:6px 8px 4px}
+  .brand .mark{width:30px; height:30px; border-radius:9px; background:var(--accent); display:grid; place-items:center; flex-shrink:0; box-shadow:0 2px 10px -3px rgba(16,20,28,.5)}
+  .brand .mark svg{display:block}
+  .brand .name{font-weight:700; font-size:15px; letter-spacing:.02em}
+  .brand .name b{color:var(--accent)}
+  .brand .sub{font-size:10.5px; color:var(--nav-muted); letter-spacing:.06em; text-transform:uppercase; margin-top:1px}
+  .navsec{font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--nav-muted); padding:0 10px; margin:22px 0 7px}
+  .navlist{display:flex; flex-direction:column; gap:2px}
+  .navitem{display:flex; align-items:center; gap:11px; padding:9px 10px; border-radius:9px; color:var(--nav-muted); cursor:pointer; font-weight:500; font-size:13.5px; border:0; background:none; text-align:left; width:100%; transition:background .14s,color .14s}
+  .navitem svg{width:17px; height:17px; flex-shrink:0; stroke-width:1.9}
+  .navitem:hover{color:var(--nav-ink); background:#161B23}
+  .navitem.active{color:var(--nav-ink); background:var(--nav-active)}
+  .navitem.active svg{color:var(--accent)}
+  .navitem .badge{margin-left:auto; font-family:var(--mono); font-size:11px; background:#1C222B; color:var(--nav-muted); padding:1px 7px; border-radius:99px}
+  .navitem.active .badge{background:var(--accent); color:#fff}
+  .nav-foot{margin-top:auto; padding-top:14px; border-top:1px solid var(--nav-line)}
+  .nav-user{display:flex; align-items:center; gap:10px; padding:8px 8px}
+  .nav-user .ava{width:30px; height:30px; border-radius:8px; background:#222833; color:var(--nav-ink); display:grid; place-items:center; font-weight:700; font-size:12.5px; flex-shrink:0}
+  .nav-user .who{min-width:0}
+  .nav-user .who .n{font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .nav-user .who .e{font-size:11px; color:var(--nav-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+
+  /* ---- main ---- */
+  .main{min-width:0; display:flex; flex-direction:column}
+  .topbar{height:60px; display:flex; align-items:center; gap:16px; padding:0 28px; border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--surface) 78%, transparent); backdrop-filter:blur(8px); position:sticky; top:0; z-index:20}
+  .topbar h1{font-size:17px; font-weight:700; margin:0; letter-spacing:-.01em}
+  .topbar .crumb{color:var(--faint); font-weight:500; font-size:13px}
+  .search{margin-left:auto; position:relative; width:248px}
+  .search input{width:100%; border:1px solid var(--line); background:var(--surface-2); border-radius:9px; padding:8px 12px 8px 33px; font:inherit; font-size:13px; color:var(--ink)}
+  .search input::placeholder{color:var(--faint)}
+  .search input:focus{outline:none; border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px var(--accent-tint)}
+  .search svg{position:absolute; left:10px; top:9px; width:15px; height:15px; color:var(--faint); stroke-width:2}
+  .icobtn{width:34px; height:34px; border:1px solid var(--line); background:var(--surface); border-radius:9px; display:grid; place-items:center; cursor:pointer; color:var(--ink-2); position:relative}
+  .icobtn:hover{border-color:var(--ink-2)}
+  .icobtn svg{width:17px;height:17px;stroke-width:1.9}
+  .icobtn .dot{position:absolute; top:7px; right:8px; width:6px; height:6px; border-radius:99px; background:var(--accent); border:1.5px solid var(--surface)}
+  .btn{display:inline-flex; align-items:center; gap:7px; border:1px solid var(--accent); background:var(--accent); color:#fff; font-weight:600; font-size:13px; padding:8px 14px; border-radius:9px; cursor:pointer; transition:background .14s}
+  .btn svg{width:15px;height:15px;stroke-width:2.2}
+  .btn:hover{background:var(--accent-deep); border-color:var(--accent-deep)}
+  .btn.ghost{background:var(--surface); color:var(--ink); border-color:var(--line)}
+  .btn.ghost:hover{border-color:var(--ink-2); background:var(--surface)}
+
+  .content{padding:26px 28px 60px; max-width:1280px; width:100%}
+  .view{display:none}
+  .view.on{display:block; animation:fade .25s ease}
+  @keyframes fade{from{opacity:0; transform:translateY(4px)}to{opacity:1; transform:none}}
+
+  /* ===================== cards ===================== */
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow)}
+  .pad{padding:18px 20px}
+  .ctitle{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px}
+  .ctitle h3{margin:0; font-size:14px; font-weight:700; letter-spacing:-.01em}
+  .ctitle .link{font-size:12.5px; font-weight:600; color:var(--accent-deep); cursor:pointer}
+  .ctitle .link:hover{text-decoration:underline}
+
+  /* ---- KPI row ---- */
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:14px}
+  .kpi{padding:16px 17px; position:relative; overflow:hidden}
+  .kpi .lab{font-size:12px; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:7px}
+  .kpi .lab svg{width:14px; height:14px; color:var(--faint); stroke-width:2}
+  .kpi .val{font-size:29px; font-weight:600; margin-top:11px; line-height:1; letter-spacing:-.03em}
+  .kpi .val .unit{font-size:15px; color:var(--muted); font-weight:500; margin-left:2px}
+  .kpi .meta{display:flex; align-items:center; gap:8px; margin-top:10px}
+  .delta{display:inline-flex; align-items:center; gap:3px; font-family:var(--mono); font-size:11.5px; font-weight:600; padding:2px 7px; border-radius:7px}
+  .delta svg{width:11px; height:11px; stroke-width:2.6}
+  .delta.up{color:var(--green); background:var(--green-soft)}
+  .delta.flat{color:var(--muted); background:var(--line-2)}
+  .delta.warn{color:var(--amber); background:var(--amber-soft)}
+  .kpi .note{font-size:11.5px; color:var(--faint)}
+  .spark{position:absolute; right:14px; bottom:14px; width:78px; height:30px; opacity:.9}
+
+  /* ---- dashboard grid ---- */
+  .dash{display:grid; grid-template-columns:1.55fr 1fr; gap:14px; margin-top:14px}
+  .bars{display:flex; flex-direction:column; gap:13px}
+  .bar{display:grid; grid-template-columns:84px 1fr 38px; align-items:center; gap:12px}
+  .bar .bn{font-size:12.5px; font-weight:600; text-transform:capitalize}
+  .bar .bn small{display:block; color:var(--faint); font-weight:500; font-size:10.5px; text-transform:none; letter-spacing:.02em}
+  .track{height:8px; background:var(--line-2); border-radius:99px; overflow:hidden}
+  .fill{height:100%; border-radius:99px; background:var(--accent)}
+  .bar .bv{font-family:var(--mono); font-size:12.5px; color:var(--ink-2); text-align:right; font-weight:600}
+
+  .split{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px}
+  /* niche cloud */
+  .niches{display:flex; flex-wrap:wrap; gap:7px}
+  .ntag{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; padding:5px 11px; border-radius:8px; background:var(--surface-2); border:1px solid var(--line); text-transform:capitalize}
+  .ntag .c{font-family:var(--mono); color:var(--muted); font-weight:600; font-size:11.5px}
+
+  /* agenda timeline */
+  .tl{position:relative; padding-left:22px}
+  .tl::before{content:""; position:absolute; left:5px; top:6px; bottom:6px; width:1.5px; background:var(--line)}
+  .tl-row{position:relative; padding:9px 0; border-bottom:1px solid var(--line-2)}
+  .tl-row:last-child{border-bottom:0}
+  .tl-row::before{content:""; position:absolute; left:-21px; top:14px; width:9px; height:9px; border-radius:99px; background:var(--surface); border:2px solid var(--faint)}
+  .tl-row.soon::before{border-color:var(--amber); background:var(--amber)}
+  .tl-row.late::before{border-color:var(--danger); background:var(--danger)}
+  .tl-top{display:flex; align-items:center; gap:8px}
+  .tl-kind{font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:2px 7px; border-radius:6px}
+  .tl-kind.e{color:#2C6E8F; background:#E2EEF4}
+  .tl-kind.p{color:var(--accent-deep); background:var(--accent-soft)}
+  .tl-when{margin-left:auto; font-family:var(--mono); font-size:12px; font-weight:600; color:var(--ink-2)}
+  .tl-when.soon{color:var(--amber)} .tl-when.late{color:var(--danger)}
+  .tl-desc{font-size:13px; color:var(--ink-2); margin-top:4px}
+  .tl-desc b{color:var(--ink); font-weight:600}
+
+  /* ===================== influencers ===================== */
+  .toolbar{display:flex; gap:10px; align-items:center; margin-bottom:18px; flex-wrap:wrap}
+  .toolbar .search{margin-left:0; width:280px}
+  .seg{display:inline-flex; background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:3px; gap:2px}
+  .seg button{border:0; background:none; font:inherit; font-size:12.5px; font-weight:600; color:var(--muted); padding:6px 12px; border-radius:7px; cursor:pointer}
+  .seg button.on{background:var(--accent); color:#fff}
+  .spacer{flex:1}
+  .count{font-size:12.5px; color:var(--faint); font-weight:500}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:14px}
+  .inf{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px 17px; display:flex; flex-direction:column; gap:13px; transition:border-color .15s, box-shadow .15s, transform .15s; position:relative}
+  .inf:hover{border-color:#D7DAE1; box-shadow:0 10px 26px -18px rgba(16,20,28,.4); transform:translateY(-1px)}
+  .inf-top{display:flex; align-items:center; gap:11px}
+  .mono-ava{width:40px; height:40px; border-radius:10px; display:grid; place-items:center; font-weight:700; font-size:15px; flex-shrink:0}
+  .av-nano{background:#EEF0F3;color:#5A616B}
+  .av-micro{background:var(--green-soft);color:var(--green)}
+  .av-macro{background:var(--accent-soft);color:var(--accent-deep)}
+  .av-mega{background:#F3E7EE;color:#7A4A63}
+  .inf-id{min-width:0; flex:1}
+  .inf-h{font-weight:700; font-size:14.5px; display:flex; align-items:center; gap:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .inf-h a{color:var(--ink); text-decoration:none}
+  .inf-h a:hover{color:var(--accent-deep)}
+  .inf-sub{font-size:12px; color:var(--muted); margin-top:1px}
+  .inf-acts{display:flex; gap:5px; opacity:0; transition:opacity .14s}
+  .inf:hover .inf-acts{opacity:1}
+  .miniico{width:28px; height:28px; border:1px solid var(--line); background:var(--surface); border-radius:8px; display:grid; place-items:center; cursor:pointer; color:var(--muted)}
+  .miniico svg{width:14px; height:14px; stroke-width:1.9}
+  .miniico:hover{color:var(--accent-deep); border-color:var(--accent-soft); background:var(--accent-tint)}
+  .inf-mid{display:flex; align-items:flex-end; justify-content:space-between; gap:10px; padding-bottom:13px; border-bottom:1px solid var(--line-2)}
+  .inf-foll{font-size:25px; font-weight:600; line-height:1; letter-spacing:-.03em}
+  .inf-foll .u{font-size:11.5px; color:var(--muted); font-weight:500; font-family:"Hanken Grotesk",sans-serif; letter-spacing:0; margin-left:5px}
+  .tier{display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:99px; letter-spacing:.04em; text-transform:uppercase}
+  .tier::before{content:""; width:6px; height:6px; border-radius:99px; background:currentColor}
+  .t-nano{color:#7A8089; background:#EEF0F3}
+  .t-micro{color:var(--green); background:var(--green-soft)}
+  .t-macro{color:var(--accent-deep); background:var(--accent-soft)}
+  .t-mega{color:#7A4A63; background:#F3E7EE}
+  .inf-niches{display:flex; flex-wrap:wrap; gap:5px; min-height:24px}
+  .chip{font-size:11.5px; font-weight:500; color:var(--ink-2); background:var(--surface-2); border:1px solid var(--line); padding:2px 8px; border-radius:7px; text-transform:capitalize}
+  .inf-foot{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:auto}
+  .inf-val{font-size:12.5px; color:var(--muted)}
+  .inf-val b{font-family:var(--mono); color:var(--ink); font-weight:600; font-size:13px}
+  .contact{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); background:var(--surface); color:var(--ink-2); font-weight:600; font-size:12.5px; padding:6px 11px; border-radius:8px; cursor:pointer}
+  .contact svg{width:14px; height:14px; stroke-width:2}
+  .contact:hover{border-color:var(--accent); color:var(--accent-deep); background:var(--accent-tint)}
+  .linkflag{position:absolute; top:14px; right:14px; font-size:10.5px; font-weight:600; color:var(--green); background:var(--green-soft); padding:2px 8px; border-radius:7px}
+  .camp-badges{position:absolute; top:12px; right:12px; display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end; max-width:60%}
+  .camp-badge{font-size:10px; font-weight:700; letter-spacing:.02em; color:#8B5E0A; background:linear-gradient(135deg,#FFF3D6,#FFE4A8); border:1px solid #EAC96C; padding:3px 9px; border-radius:8px; cursor:pointer; white-space:nowrap; transition:.15s; text-transform:uppercase}
+  .camp-badge:hover{background:linear-gradient(135deg,#FFEBB0,#FFD66B); border-color:#D4A934; transform:scale(1.04)}
+  body.dark .camp-badge{color:#F5D060; background:linear-gradient(135deg,#2E2608,#3D320F); border-color:#5C4B1A}
+  body.dark .camp-badge:hover{background:linear-gradient(135deg,#3D320F,#544418); border-color:#8B7530}
+  /* side panel */
+  .sidepanel{position:fixed; top:0; right:-420px; width:400px; max-width:90vw; height:100vh; background:var(--surface); border-left:1px solid var(--border); box-shadow:-8px 0 40px rgba(0,0,0,.15); z-index:900; transition:right .25s ease; overflow-y:auto; padding:20px}
+  .sidepanel.open{right:0}
+  .sidepanel .sp-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px}
+  .sidepanel .sp-head h3{margin:0; font-size:16px}
+  .sidepanel .sp-close{appearance:none; border:none; background:none; cursor:pointer; color:var(--ink-2); font-size:20px; padding:4px 8px}
+  .sidepanel .sp-close:hover{color:var(--ink)}
+  .sidepanel .sp-item{display:flex; align-items:center; gap:12px; padding:10px; border-radius:10px; transition:.1s}
+  .sidepanel .sp-item:hover{background:var(--surface-2)}
+  .sidepanel .sp-item .sp-info{flex:1; min-width:0}
+  .sidepanel .sp-item .sp-handle{font-weight:600; font-size:13.5px}
+  .sidepanel .sp-item .sp-meta{font-size:11.5px; color:var(--ink-2)}
+  .sidepanel .sp-item .sp-val{font-weight:700; font-size:13px; color:var(--accent); font-family:'JetBrains Mono',monospace}
+  .sp-overlay{position:fixed; inset:0; background:rgba(0,0,0,.25); z-index:899; display:none}
+  .sp-overlay.open{display:block}
+
+  .note-strip{display:flex; gap:9px; align-items:flex-start; margin-top:22px; padding:13px 15px; background:var(--accent-tint); border:1px solid var(--accent-soft); border-radius:10px; font-size:12.5px; color:var(--ink-2)}
+  .note-strip svg{width:16px;height:16px;color:var(--accent-deep);stroke-width:2;flex-shrink:0;margin-top:1px}
+  .note-strip b{color:var(--ink)}
+
+  /* ---- tabelas (marcas / campanhas) ---- */
+  .tbl-wrap{overflow:hidden}
+  .tbl-scroll{overflow-x:auto}
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  thead th{text-align:left; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); font-weight:700; padding:12px 16px; border-bottom:1px solid var(--line); white-space:nowrap; background:var(--surface-2)}
+  tbody td{padding:13px 16px; border-bottom:1px solid var(--line-2); vertical-align:middle}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:var(--surface-2)}
+  .cell-strong{font-weight:600; font-size:13.5px}
+  .cell-sub{font-size:11.5px; color:var(--muted); margin-top:3px}
+  .chip-row{display:flex; flex-wrap:wrap; gap:4px}
+  .st{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:3px 10px; border-radius:99px; white-space:nowrap}
+  .st::before{content:""; width:6px; height:6px; border-radius:99px; background:currentColor}
+  .row-acts{display:flex; gap:5px; opacity:0; transition:opacity .14s}
+  tr:hover .row-acts{opacity:1}
+  .due{font-family:var(--mono); font-size:12px; font-weight:600; white-space:nowrap}
+  .due.soon{color:var(--amber)} .due.late{color:var(--danger)} .due.ok{color:var(--ink-2)} .due.done{color:var(--faint)}
+
+  /* ---- funil ---- */
+  .funnel{display:flex; gap:11px; margin-bottom:16px; flex-wrap:wrap}
+  .fstage{flex:1; min-width:130px; background:var(--surface); border:1px solid var(--line); border-radius:11px; padding:14px 16px}
+  .fstage .fc{font-family:var(--mono); font-size:23px; font-weight:600; letter-spacing:-.02em}
+  .fstage .fl{font-size:11.5px; color:var(--muted); font-weight:600; margin-top:5px; display:flex; align-items:center; gap:7px}
+  .fstage .fl::before{content:""; width:7px; height:7px; border-radius:99px; background:var(--dotc,var(--faint))}
+
+  /* ---- match ---- */
+  .match{display:grid; grid-template-columns:286px 1fr; gap:16px; align-items:start}
+  .ffield{margin-bottom:15px}
+  .ffield label{display:block; font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:6px}
+  .ffield input,.ffield select{width:100%; border:1px solid var(--line); background:var(--surface-2); border-radius:9px; padding:9px 11px; font:inherit; font-size:13px; color:var(--ink)}
+  .ffield input:focus,.ffield select:focus{outline:none; border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px var(--accent-tint)}
+  .summary{display:flex; gap:26px; flex-wrap:wrap; padding:16px 19px; background:var(--accent-tint); border:1px solid var(--accent-soft); border-radius:12px; margin-bottom:14px}
+  .summary .sv{font-size:22px; font-weight:600; font-family:var(--mono); letter-spacing:-.02em}
+  .summary .sl{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--accent-deep); font-weight:600; margin-top:3px}
+  .roster{display:flex; flex-direction:column; gap:9px}
+  .rcard{display:flex; align-items:center; gap:13px; padding:11px 14px; border:1px solid var(--line); border-radius:11px; background:var(--surface); transition:border-color .14s, background .14s}
+  .rcard.sel{border-color:var(--accent); background:var(--accent-tint)}
+  .rcard .rid{flex:1; min-width:0}
+  .rcard .rh{font-weight:600; font-size:13.5px; display:flex; align-items:center; gap:8px}
+  .rcard .rm{font-size:12px; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .rcard .rv{text-align:right; flex-shrink:0}
+  .rcard .rv .rval{font-family:var(--mono); font-size:13px; font-weight:600}
+  .addbtn{display:inline-flex; align-items:center; gap:5px; border:1px solid var(--line); background:var(--surface); color:var(--ink-2); font-weight:600; font-size:11.5px; padding:5px 10px; border-radius:8px; cursor:pointer; margin-top:6px}
+  .addbtn:hover{border-color:var(--accent); color:var(--accent-deep); background:#fff}
+  .rcard.sel .addbtn{border-color:var(--accent); color:var(--accent-deep)}
+  @media(max-width:880px){ .match{grid-template-columns:1fr} }
+
+  /* ===================== dark mode (1ª classe) ===================== */
+  body.dark{
+    --bg:#0B0E13; --surface:#12161D; --surface-2:#171C24;
+    --ink:#E9ECF1; --ink-2:#B4BAC5; --muted:#8A92A0; --faint:#646B78;
+    --line:#242B35; --line-2:#1B212A;
+    --accent-soft:#16332A; --accent-tint:#101E18;
+    --green-soft:#15301F; --amber-soft:#312611; --danger-soft:#341A1A;
+    --shadow:0 1px 1px rgba(0,0,0,.3);
+    --shadow-pop:0 16px 40px -18px rgba(0,0,0,.7);
+  }
+  body.dark .topbar{background:color-mix(in srgb,var(--surface) 82%, transparent)}
+  body.dark .chip{background:var(--surface-2)}
+  body.dark .t-nano,body.dark .av-nano{background:#222933;color:#AEB6C2}
+  body.dark .t-micro,body.dark .av-micro{background:#15301F;color:#5FC58C}
+  body.dark .t-macro,body.dark .av-macro{background:#16332A;color:#4FBE8C}
+  body.dark .t-mega,body.dark .av-mega{background:#2C2230;color:#D9A9C6}
+  body.dark .tl-kind.e{background:#16323F;color:#7FC4E0}
+  body.dark thead th{background:var(--surface-2)}
+  body.dark .search input:focus,body.dark .ffield input:focus,body.dark .ffield select:focus,body.dark .field input:focus,body.dark .field select:focus,body.dark .field textarea:focus{background:var(--surface-2)}
+  body.dark .addbtn:hover{background:var(--surface-2)}
+  body.dark .sw{box-shadow:0 0 0 1px var(--line) inset}
+
+  /* ===================== gate (login / onboarding) ===================== */
+  .gate{position:fixed; inset:0; z-index:90; display:flex; align-items:center; justify-content:center; padding:24px;
+    background:radial-gradient(135% 95% at 50% -12%, #16202B 0%, #090C11 62%)}
+  .gate-card{width:100%; max-width:392px; background:#10151D; border:1px solid #1E2530; border-radius:18px; padding:34px 30px; box-shadow:0 44px 100px -34px rgba(0,0,0,.75); color:#E7E4DD}
+  .gate-logo{display:flex; flex-direction:column; align-items:center; gap:11px; margin-bottom:6px}
+  .gate-mark{width:54px; height:54px; border-radius:15px; background:var(--accent); display:grid; place-items:center; box-shadow:0 10px 28px -6px rgba(27,122,87,.6)}
+  .gate-word{font-weight:700; font-size:21px; letter-spacing:.03em}
+  .gate-tag{font-size:11.5px; color:#3FA877; letter-spacing:.03em}
+  .gate-sub{text-align:center; color:#8A92A0; font-size:13px; margin:15px 0 18px; line-height:1.5}
+  .gate-tabs{display:flex; gap:4px; background:#0A0E13; border:1px solid #1E2530; border-radius:11px; padding:4px; margin-bottom:18px}
+  .gate-tabs button{flex:1; border:0; background:none; color:#8A92A0; font:inherit; font-weight:600; font-size:13px; padding:8px; border-radius:8px; cursor:pointer; transition:.14s}
+  .gate-tabs button.on{background:#1A212B; color:#E7E4DD}
+  .gfield{margin-bottom:13px}
+  .gfield label{display:block; font-size:12px; font-weight:600; color:#9098A4; margin-bottom:6px}
+  .gfield input{width:100%; background:#0C1118; border:1px solid #232B36; border-radius:9px; padding:10px 12px; font:inherit; font-size:13.5px; color:#E7E4DD}
+  .gfield input::placeholder{color:#5A616D}
+  .gfield input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(27,122,87,.22)}
+  .gbtn{width:100%; border:1px solid var(--accent); background:var(--accent); color:#fff; font-weight:600; font-size:14px; padding:11px; border-radius:9px; cursor:pointer; margin-top:6px; transition:background .14s}
+  .gbtn:hover{background:var(--accent-deep)}
+  .gbtn.alt{background:transparent; color:#E7E4DD; border-color:#2A3340; margin-top:9px}
+  .gbtn.alt:hover{background:#161D27}
+  .gor{text-align:center; color:#5A616D; font-size:12px; margin:16px 0}
+  .gback{display:block; text-align:center; margin-top:18px; color:#3FA877; font-size:12.5px; font-weight:600; background:none; border:0; cursor:pointer; width:100%}
+  .gback:hover{text-decoration:underline}
+  .au-msg{text-align:center; font-size:12.5px; color:#3FA877; margin-top:13px; min-height:16px; line-height:1.4}
+  .au-msg.err{color:#E08A6A}
+  .navlogout{margin-left:auto; width:30px; height:30px; border-radius:8px; border:0; background:none; color:var(--nav-muted); display:grid; place-items:center; cursor:pointer; flex-shrink:0}
+  .navlogout:hover{color:var(--nav-ink); background:#161B23}
+  .navlogout svg{width:16px; height:16px; stroke-width:1.9}
+
+  /* ===================== modal + toast ===================== */
+  .scrim{position:fixed; inset:0; z-index:85; background:rgba(8,11,16,.55); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; padding:20px}
+  .scrim.on{display:flex}
+  .modal2{background:var(--surface); border:1px solid var(--line); border-radius:16px; max-width:520px; width:100%; max-height:88vh; overflow:auto; box-shadow:var(--shadow-pop); animation:mpop .16s ease}
+  @keyframes mpop{from{opacity:0; transform:translateY(8px) scale(.99)}to{opacity:1; transform:none}}
+  .m-h{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:18px 20px; border-bottom:1px solid var(--line)}
+  .m-h h3{margin:0; font-size:16px; font-weight:700}
+  .m-b{padding:18px 20px}
+  .m-f{display:flex; justify-content:flex-end; gap:9px; padding:14px 20px; border-top:1px solid var(--line)}
+  .m-close{width:30px; height:30px; border:1px solid var(--line); background:var(--surface); border-radius:8px; display:grid; place-items:center; cursor:pointer; color:var(--muted)}
+  .m-close:hover{color:var(--ink); border-color:var(--ink-2)}
+  .m-close svg{width:15px; height:15px; stroke-width:2}
+  .field{margin-bottom:13px}
+  .field label{display:block; font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:6px}
+  .field input,.field select,.field textarea{width:100%; border:1px solid var(--line); background:var(--surface-2); border-radius:9px; padding:9px 11px; font:inherit; font-size:13px; color:var(--ink)}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none; border-color:var(--accent); background:var(--surface); box-shadow:0 0 0 3px var(--accent-tint)}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .btn.danger{background:var(--danger); border-color:var(--danger)}
+  .btn.danger:hover{background:#a8432d; border-color:#a8432d}
+
+  .toasts{position:fixed; right:20px; bottom:20px; z-index:95; display:flex; flex-direction:column; gap:9px; align-items:flex-end}
+  .toast{display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:10px; padding:11px 14px; box-shadow:var(--shadow-pop); font-size:13px; font-weight:500; min-width:220px; animation:tin .2s ease}
+  .toast svg{width:16px; height:16px; flex-shrink:0; stroke-width:2.2; color:var(--accent-deep)}
+  .toast.ok{border-left-color:var(--green)} .toast.ok svg{color:var(--green)}
+  .toast.warn{border-left-color:var(--amber)} .toast.warn svg{color:var(--amber)}
+  .toast.info{border-left-color:#2C6E8F} .toast.info svg{color:#2C6E8F}
+  @keyframes tin{from{opacity:0; transform:translateX(14px)}to{opacity:1; transform:none}}
+
+  /* ===================== página de componentes ===================== */
+  .ds-lead{color:var(--muted); margin:0 0 18px; max-width:580px; line-height:1.55}
+  .ds-lead b{color:var(--ink)}
+  .ds-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px}
+  .ds-card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px}
+  .ds-card h4{margin:0 0 14px; font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:var(--faint); font-weight:700}
+  .ds-row{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+  .ds-row+.ds-row{margin-top:11px}
+  .ds-stack{display:flex; flex-direction:column; gap:11px}
+  .clinks a{display:inline-flex; align-items:center; gap:7px; color:var(--accent); text-decoration:none; font-weight:600}
+  .clinks a:hover{color:var(--accent-deep); text-decoration:underline}
+  .type-spec{display:flex; align-items:baseline; gap:12px; padding:7px 0; border-bottom:1px solid var(--line-2)}
+  .type-spec:last-child{border-bottom:0}
+  .type-spec .tn{font-size:11px; color:var(--faint); width:64px; flex-shrink:0; font-family:var(--mono)}
+  .ds-note{font-size:12px; color:var(--muted)}
+
+  /* accent switcher (controle da concept, não faz parte do produto) */
+  .accentbar{display:flex; align-items:center; gap:12px; margin-bottom:18px; padding:10px 14px; background:var(--surface); border:1px solid var(--line); border-radius:10px; flex-wrap:wrap}
+  .accentbar .albl{font-size:12.5px; font-weight:600; color:var(--muted)}
+  .accentbar .albl b{color:var(--ink)}
+  .swatches{display:flex; gap:8px}
+  .sw{width:24px; height:24px; border-radius:7px; cursor:pointer; border:2px solid transparent; box-shadow:0 0 0 1px var(--line) inset; transition:transform .12s}
+  .sw:hover{transform:scale(1.12)}
+  .sw.on{border-color:var(--ink)}
+  .accentbar .hint{margin-left:auto; font-size:11.5px; color:var(--faint)}
+  @media(max-width:1080px){ .dash{grid-template-columns:1fr} .kpis{grid-template-columns:repeat(2,1fr)} }
+  @media(max-width:820px){ .app{grid-template-columns:1fr} .nav{display:none} .split{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="nav">
+    <div class="brand">
+      <span class="mark">
+        <svg width="20" height="18" viewBox="0 0 120 110" aria-hidden="true"><path d="M22 48 Q60 18 98 48" stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round"/><circle cx="60" cy="46" r="8.5" stroke="#fff" stroke-width="7" fill="none"/><line x1="36" y1="72" x2="84" y2="72" stroke="#fff" stroke-width="7" stroke-linecap="round"/><line x1="44" y1="88" x2="76" y2="88" stroke="#fff" stroke-width="7" stroke-linecap="round"/></svg>
+      </span>
+      <div>
+        <div class="name">Phosphoros</div>
+        <div class="sub">gestão de talentos</div>
+      </div>
+    </div>
+
+    <div class="navsec">Menu</div>
+    <div class="navlist">
+      <button class="navitem active" data-go="painel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        Painel
+      </button>
+      <button class="navitem" data-go="influ">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6.5a3 3 0 0 1 0 5.4M18 19a5.4 5.4 0 0 0-3-4.7"/></svg>
+        Influenciadores <span class="badge">20</span>
+      </button>
+      <button class="navitem" data-go="marcas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l1.5-4.5h15L21 9"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 9a3 3 0 0 0 6 0"/></svg>
+        Marcas <span class="badge">6</span>
+      </button>
+      <button class="navitem" data-go="camp">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l14-6v14L3 13z"/><path d="M17 7a3 3 0 0 1 0 6"/><path d="M6 13v3a2 2 0 0 0 2 2h1"/></svg>
+        Campanhas <span class="badge">4</span>
+      </button>
+    </div>
+
+    <div class="navsec">Ferramentas</div>
+    <div class="navlist">
+      <button class="navitem" data-go="match">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg>
+        Match de casting
+      </button>
+
+    </div>
+
+    <div class="nav-foot">
+      <div class="nav-user">
+        <div class="ava" id="navAva">·</div>
+        <div class="who">
+          <div class="n" id="navName">—</div>
+          <div class="e" id="navEmail"></div>
+        </div>
+        <button class="navlogout" title="Sair" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg></button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+    <header class="topbar">
+      <h1 id="ptitle">Painel</h1>
+      <span class="crumb" id="pcrumb">· visão geral</span>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="globalSearch" placeholder="Buscar perfil, marca, campanha…">
+      </div>
+      <button class="btn ghost" id="seedBtn" onclick="loadExample()" style="display:none">Carregar exemplo</button>
+      <button class="btn ghost" onclick="showInvite()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;stroke-width:2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M17 8h5M19.5 5.5v5"/></svg>Convidar</button>
+      <button class="icobtn" id="darkBtn" title="Tema claro/escuro" onclick="toggleDark()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></button>
+      <button class="icobtn" title="Notificações"><span class="dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></button>
+      <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>Novo</button>
+    </header>
+
+    <div class="content">
+      <!-- ===== PAINEL ===== -->
+      <section class="view on" id="v-painel"></section>
+      <!-- ===== INFLUENCIADORES ===== -->
+      <section class="view" id="v-influ"></section>
+      <!-- ===== MARCAS ===== -->
+      <section class="view" id="v-marcas"></section>
+      <!-- ===== CAMPANHAS ===== -->
+      <section class="view" id="v-camp"></section>
+      <!-- ===== MATCH ===== -->
+      <section class="view" id="v-match"></section>
+      <!-- ===== COMPONENTES ===== -->
+      <section class="view" id="v-ds"></section>
+    </div>
+  </main>
+</div>
+
+<!-- ============ GATE: login / onboarding ============ -->
+<div class="sp-overlay" id="spOverlay" onclick="closeSidePanel()"></div>
+<div class="sidepanel" id="sidePanel">
+  <div class="sp-head"><h3 id="spTitle">Campanha</h3><button class="sp-close" onclick="closeSidePanel()">✕</button></div>
+  <div id="spBody"></div>
+</div>
+
+<div id="gate" class="gate" style="display:none">
+  <div class="gate-card">
+    <div class="gate-logo">
+      <span class="gate-mark"><svg width="32" height="29" viewBox="0 0 120 110" aria-hidden="true"><path d="M22 48 Q60 18 98 48" stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round"/><circle cx="60" cy="46" r="8.5" stroke="#fff" stroke-width="7" fill="none"/><line x1="36" y1="72" x2="84" y2="72" stroke="#fff" stroke-width="7" stroke-linecap="round"/><line x1="44" y1="88" x2="76" y2="88" stroke="#fff" stroke-width="7" stroke-linecap="round"/></svg></span>
+      <div style="text-align:center">
+        <div class="gate-word">PHOSPHOROS</div>
+        <div class="gate-tag">Clareza para quem gerencia talentos</div>
+      </div>
+    </div>
+    <div id="g-in">
+      <p class="gate-sub">Entre para acessar o painel da agência</p>
+      <div class="gfield"><label>E-mail</label><input id="au-email" type="email" placeholder="voce@email.com"></div>
+      <div class="gfield"><label>Senha</label><input id="au-pass" type="password" placeholder="mínimo 6 caracteres"></div>
+      <button class="gbtn" onclick="doLogin()">Entrar</button>
+      <button class="gbtn alt" onclick="doSignup()">Criar conta nova</button>
+      <p style="text-align:center;color:#7E8794;font-size:11.5px;margin:12px 0 0">Primeira vez? Preencha e-mail e senha e toque em <b>Criar conta nova</b>.</p>
+      <div class="au-msg" id="au-msg"></div>
+    </div>
+
+    <div id="g-sent" style="display:none;text-align:center">
+      <p class="gate-sub" style="font-size:15px;color:var(--cream)">Conta criada! ✅</p>
+      <p style="color:#C7CDD6;font-size:13.5px;line-height:1.6;margin:0 0 20px">Enviamos um link de confirmação para <b id="sentEmail" style="color:var(--accent)"></b>.<br>Abra seu e-mail, confirme a conta e depois volte aqui para entrar.</p>
+      <button class="gbtn" onclick="showGatePanel('in')">Voltar para o login</button>
+    </div>
+
+    <div id="g-ob" style="display:none">
+      <p class="gate-sub">Como você quer começar?</p>
+      <div class="gfield"><label>Criar a sua agência</label><input id="ws-name" placeholder="Nome da sua agência"></div>
+      <button class="gbtn" onclick="doCreateWs()">Criar agência</button>
+      <div class="gor">— ou —</div>
+      <div class="gfield"><label>Entrar por convite</label><input id="ws-code" placeholder="Código de convite"></div>
+      <button class="gbtn alt" onclick="doJoinWs()">Entrar com código</button>
+      <div class="au-msg" id="ob-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ modal + toasts ============ -->
+<div class="scrim" id="scrim"><div class="modal2" id="modal2"></div></div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+/* ---- dados de exemplo (mesmos do app real) ---- */
+const RAW=[
+  ["@cucaamorim",350000,"Millennials","REC","Maternidade e Beauty"],
+  ["@deb.rocha",150000,"","JP","Perfumes e dicas"],
+  ["@julianalatache",140000,"","REC","Maternidade e moda","RN"],
+  ["@claravida",120000,"Gen Z","REC","Lifestyle"],
+  ["@malicemacdowell",120000,"Millennials","REC","Maternidade"],
+  ["@claracvd",100000,"Gen Z","REC","Beauty e lifestyle"],
+  ["@tataobana_",71000,"Gen Z","REC","Moda e lifestyle"],
+  ["@mjuliameireles",65000,"Gen Z","REC","Moda e lifestyle"],
+  ["@meduardapontual",55000,"Gen Z","REC","Moda e lifestyle"],
+  ["@lecarossiter",40000,"Millennials","","Dicas e gastronomia"],
+  ["@milenaxlopez",30000,"Gen Z","RJ","Beauty"],
+  ["@daily_cidrack",30000,"","","Beauty"],
+  ["@dudarlucena",25000,"","Caruaru","Beauty e lifestyle"],
+  ["@dborahmendess",20000,"Gen Z","","Beauty e lifestyle"],
+  ["@mariannasdf",14000,"Millennials","REC","Moda e lifestyle"],
+  ["@camiccarv",13000,"","REC","Lifestyle"],
+  ["@robertamirandaag",11000,"","REC","Provador, lifestyle e saúde"],
+  ["@leticiaboo_",10000,"Gen Z","REC","Maternidade e beauty"],
+  ["@mariaoucarolina",5000,"","REC","Moda"],
+  ["@ayanelemoss",4000,"Gen Z","REC","Modelo"],
+];
+const LOCS={REC:"Recife",JP:"João Pessoa",RJ:"Rio de Janeiro",Caruaru:"Caruaru"};
+let RATE_REEL=50, RATE_STORY=20;
+let INF=[], BRANDS=[], CAMPAIGNS=[];
+const SEED_INF=()=>RAW.map((r,i)=>({id:'seed_i'+i,ig:r[0],followers:r[1],gen:r[2],loc:r[3],niche:r[4],brand:r[5]||""}));
+
+/* ---- dados de exemplo: marcas e campanhas (mesmos campos do produto) ---- */
+const SEED_BRANDS=[
+  {id:'b1',name:'RN',status:'Ativa',niche:'Moda, Maternidade',contato:'Marina (mkt)',ult:'2026-05-20',notas:'Respondeu — topou a campanha de inverno'},
+  {id:'b2',name:'Lumière Beauty',status:'Respondeu',niche:'Beauty',contato:'Camila',ult:'2026-05-18',notas:'Quer ver casting de beauty Gen Z'},
+  {id:'b3',name:'Café Norte',status:'Ativa',niche:'Lifestyle, Gastronomia',contato:'João',ult:'2026-05-22',notas:'Recorrente — 1 ação por mês'},
+  {id:'b4',name:'Studio Maré',status:'Contatado',niche:'Moda',contato:'—',ult:'2026-05-25',notas:'Mídia kit enviado, aguardando retorno'},
+  {id:'b5',name:'Derma+',status:'Prospect',niche:'Beauty, Saúde',contato:'—',ult:'',notas:''},
+  {id:'b6',name:'Aurora Kids',status:'Sem retorno',niche:'Maternidade',contato:'—',ult:'2026-05-02',notas:'2 follow-ups sem resposta'},
+];
+const SEED_CAMPS=[
+  {id:'c1',titulo:'Coleção Inverno',brand:'RN',influs:['@julianalatache'],valor:4000,entrega:'2026-06-10',pag:'2026-06-25',status:'A produzir',notas:'2 reels + 3 stories'},
+  {id:'c2',titulo:'Lançamento Sérum',brand:'Lumière Beauty',influs:['@claracvd','@milenaxlopez'],valor:6500,entrega:'2026-06-18',pag:'2026-07-05',status:'Conteúdo entregue',notas:'1 reel cada + bastidores'},
+  {id:'c3',titulo:'Especial Namorados',brand:'Café Norte',influs:['@lecarossiter'],valor:2200,entrega:'2026-06-04',pag:'2026-06-20',status:'Aguardando pagamento',notas:''},
+  {id:'c4',titulo:'Prévia Verão',brand:'Studio Maré',influs:['@meduardapontual'],valor:3000,entrega:'2026-07-20',pag:'',status:'A produzir',notas:'Briefing em definição'},
+];
+const TODAY=(()=>{const d=new Date();d.setHours(0,0,0,0);return d;})();
+const daysUntil=iso=>iso?Math.round((new Date(iso+'T00:00:00')-TODAY)/864e5):null;
+const fmtDate=iso=>{if(!iso)return '—';const p=iso.split('-');return p[2]+'/'+p[1];};
+const dash='<span style="color:var(--faint)">—</span>';
+const BRAND_STATUS={Prospect:'#727A87',Contatado:'#2C6E8F',Respondeu:'#B07514',Ativa:'#1B7A57','Sem retorno':'#9AA1AD',Pausada:'#C2543B'};
+const CAMP_STATUS={'A produzir':'#B07514','Conteúdo entregue':'#2C6E8F','Aguardando pagamento':'#C2543B','Pago':'#1B7A57'};
+const NF_STATUS={'Emitida':'#1B7A57','Não emitida':'#8A8F98'};
+function statusChip(s,map){const c=map[s]||'#888';return `<span class="st" style="color:${c};background:${c}1a">${esc(s||'—')}</span>`;}
+const BPAL=['#2C6E8F','#1B7A57','#7A4A63','#B07514','#546B4E','#9B5524'];
+function bhash(n){let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))>>>0;return BPAL[h%BPAL.length];}
+function brandTag(name){if(!name)return dash;const c=bhash(name);return `<span class="st" style="color:${c};background:${c}1a">${esc(name)}</span>`;}
+function dueCell(iso,done){if(!iso)return dash;if(done)return `<span class="due done">${fmtDate(iso)} ✓</span>`;const d=daysUntil(iso);let cl='ok',tag=` · em ${d}d`;if(d<0){cl='late';tag=' · atrasado';}else if(d===0){cl='soon';tag=' · hoje';}else if(d<=3){cl='soon';}return `<span class="due ${cl}">${fmtDate(iso)}${tag}</span>`;}
+function postValue(i){return (i.cache&&+i.cache>0)?+i.cache:reelVal(i.followers);}
+
+const fmtN=n=>n>=1e6?(n/1e6).toFixed(n%1e6?1:0)+"M":n>=1e3?(n/1e3).toFixed(n%1e3?1:0)+"k":""+n;
+const fmtMoney=n=>"R$ "+Math.round(n).toLocaleString("pt-BR");
+const tierOf=f=>f<1e4?["nano","t-nano"]:f<1e5?["micro","t-micro"]:f<1e6?["macro","t-macro"]:["mega","t-mega"];
+const reelVal=f=>f/1000*RATE_REEL;
+const nicheTags=s=>(s||"").split(/,|\be\b/i).map(x=>x.trim()).filter(Boolean);
+const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* monograma de avatar — tom por tier, plano (sem gradiente), segue o acento */
+function avatar(ig,f){const t=tierOf(f)[0];const ini=(ig.replace('@','')[0]||'?').toUpperCase();return `<div class="mono-ava av-${t}">${ini}</div>`;}
+
+/* sparkline decorativa */
+function spark(points,color){
+  const w=78,h=30,mx=Math.max(...points),mn=Math.min(...points);
+  const pts=points.map((p,i)=>`${(i/(points.length-1)*w).toFixed(1)},${(h-2-(p-mn)/(mx-mn||1)*(h-6)).toFixed(1)}`).join(' ');
+  const last=pts.split(' ').pop().split(',');
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" fill="none"><polyline points="${pts}" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${last[0]}" cy="${last[1]}" r="2" fill="${color}"/></svg>`;
+}
+
+/* ---------- PAINEL ---------- */
+function renderPainel(){
+  const total=INF.length;
+  const reach=INF.reduce((a,b)=>a+b.followers,0);
+  const avg=total?reach/total:0;
+  const rosterVal=INF.reduce((a,b)=>a+postValue(b),0);
+  const tiers={nano:0,micro:0,macro:0,mega:0};
+  INF.forEach(i=>tiers[tierOf(i.followers)[0]]++);
+  const tierMeta={nano:["Nano","< 10k"],micro:["Micro","10k–100k"],macro:["Macro","100k–1M"],mega:["Mega","1M+"]};
+
+  const nm={};
+  INF.forEach(i=>nicheTags(i.niche).forEach(t=>{const k=t.toLowerCase();nm[k]=(nm[k]||0)+1;}));
+  const niches=Object.entries(nm).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  /* agenda real (a partir das campanhas) */
+  const _ev=[];
+  CAMPAIGNS.forEach(c=>{
+    const entregue=['Conteúdo entregue','Aguardando pagamento','Pago'].includes(c.status);
+    if(c.entrega&&!entregue) _ev.push({kind:'Entrega',cls:'e',iso:c.entrega,c});
+    if(c.pag&&c.status!=='Pago') _ev.push({kind:'Pagamento',cls:'p',iso:c.pag,c});
+  });
+  _ev.sort((a,b)=>a.iso.localeCompare(b.iso));
+  const _whenT=d=>d<0?`${-d}d atrás`:d===0?'hoje':`em ${d}d`;
+  const _stOf=d=>d<0?'late':d<=3?'soon':'';
+  const agenda=_ev.slice(0,4).map(e=>{const d=daysUntil(e.iso);return{kind:e.kind,cls:e.cls,when:_whenT(d),state:_stOf(d),desc:`<b>${esc(e.c.titulo)}</b> · ${e.kind==='Pagamento'?fmtMoney(e.c.valor):esc(e.c.brand)}`};});
+  const aReceber=CAMPAIGNS.filter(c=>c.status!=='Pago').reduce((a,b)=>a+(+b.valor||0),0);
+  const nextPay=_ev.filter(e=>e.kind==='Pagamento')[0];
+
+  document.getElementById('v-painel').innerHTML=`
+  <div class="kpis">
+    <div class="card kpi">
+      <div class="lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/></svg>Influenciadores</div>
+      <div class="val num">${total}</div>
+      <div class="meta"><span class="note">na carteira</span></div>
+    </div>
+    <div class="card kpi">
+      <div class="lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12s3-7 9-7 9 7 9 7-3 7-9 7-9-7-9-7"/><circle cx="12" cy="12" r="2.5"/></svg>Alcance somado</div>
+      <div class="val num">${fmtN(reach)}</div>
+      <div class="meta"><span class="note">média ${fmtN(Math.round(avg))}/perfil</span></div>
+    </div>
+    <div class="card kpi">
+      <div class="lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v18M8 7h6a2.5 2.5 0 0 1 0 5H8m0 0h7"/></svg>Valor do casting</div>
+      <div class="val num">${fmtMoney(rosterVal).replace('R$ ','R$')}<span class="unit"></span></div>
+      <div class="meta"><span class="delta flat">1 post/perfil</span><span class="note">base da tabela atual</span></div>
+    </div>
+    <div class="card kpi">
+      <div class="lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>A receber</div>
+      <div class="val num">${fmtMoney(aReceber).replace('R$ ','R$')}</div>
+      <div class="meta"><span class="note">${nextPay?('vence '+_whenT(daysUntil(nextPay.iso))):'sem pagamentos abertos'}</span></div>
+    </div>
+  </div>
+
+  <div class="dash">
+    <div class="card pad">
+      <div class="ctitle"><h3>Distribuição por porte</h3><span class="count" style="font-family:var(--mono)">${total} perfis</span></div>
+      <div class="bars">
+        ${Object.keys(tiers).map(t=>{
+          const c=tiers[t]; const[nm,rg]=tierMeta[t];
+          return `<div class="bar">
+            <div class="bn">${nm}<small>${rg}</small></div>
+            <div class="track"><div class="fill" style="width:${c/total*100}%;background:${t==='macro'?'var(--accent)':t==='micro'?'var(--green)':t==='mega'?'#7A4A63':'#C7CCD4'}"></div></div>
+            <div class="bv">${c}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="ctitle" style="margin-top:22px"><h3>Nichos do casting</h3></div>
+      <div class="niches">
+        ${niches.map(([n,c])=>`<span class="ntag">${esc(n)} <span class="c">${c}</span></span>`).join('')}
+      </div>
+    </div>
+
+    <div class="card pad">
+      <div class="ctitle"><h3>Próximos prazos</h3><span class="link">Ver agenda →</span></div>
+      <div class="tl">
+        ${agenda.map(a=>`<div class="tl-row ${a.state}">
+          <div class="tl-top">
+            <span class="tl-kind ${a.cls}">${a.kind}</span>
+            <span class="tl-when ${a.state}">${a.when}</span>
+          </div>
+          <div class="tl-desc">${a.desc}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>
+
+  <div class="split" style="margin-top:14px">
+    <div class="card pad">
+      <div class="ctitle"><h3>Tabela de preços</h3><span class="count">base do valor automático · por 1.000 seguidores</span></div>
+      <div class="grid2" style="max-width:420px">
+        <div class="field" style="margin:0"><label>Reel · R$ / 1k</label><input id="rate_reel" type="number" value="${RATE_REEL}" onchange="saveRates()"></div>
+        <div class="field" style="margin:0"><label>Story · R$ / 1k</label><input id="rate_story" type="number" value="${RATE_STORY}" onchange="saveRates()"></div>
+      </div>
+      <div class="ds-note" style="margin-top:10px">Ex.: um perfil de 100k → reel ${fmtMoney(100000/1000*RATE_REEL)}. Cachê individual do influenciador sobrescreve a estimativa.</div>
+    </div>
+    <div class="card pad">
+      <div class="ctitle"><h3>Dados da carteira</h3></div>
+      <div class="ds-note" style="margin-bottom:12px">Exporte a carteira de talentos pra mandar pra marcas ou guardar.</div>
+      <div class="ds-row">
+        <button class="btn ghost" onclick="exportCsv()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;stroke-width:2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg>Exportar CSV</button>
+        <button class="btn ghost" onclick="exportPdf()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;stroke-width:2"><path d="M7 3h7l5 5v13a0 0 0 0 1 0 0H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5"/></svg>Exportar PDF</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------- INFLUENCIADORES ---------- */
+function renderInflu(){
+  const rows=INF.slice().sort((a,b)=>b.followers-a.followers);
+  document.getElementById('v-influ').innerHTML=`
+  <div class="toolbar">
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input placeholder="Buscar perfil, nicho, cidade…">
+    </div>
+    <div class="seg">
+      <button class="on">Todos</button><button>Nano</button><button>Micro</button><button>Macro</button>
+    </div>
+    <div class="spacer"></div>
+    <span class="count">${rows.length} perfis · porte e valor automáticos</span>
+    <button class="btn ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>Novo perfil</button>
+  </div>
+  <div class="grid">
+    ${rows.map(i=>{
+      const[t,cl]=tierOf(i.followers);
+      const meta=[LOCS[i.loc]||i.loc||'', i.gen||''].filter(Boolean).join(' · ')||'—';
+      return `<div class="inf">
+        ${(()=>{ const camps=infCamps(i.ig); if(camps.length) return `<div class="camp-badges">${camps.map(c=>`<span class="camp-badge" onclick="openCampPanel('${esc(String(c.id))}')" title="${esc(c.titulo)}">${esc(c.titulo)}</span>`).join('')}</div>`; return i.brand?`<span class="linkflag">${esc(i.brand)}</span>`:''; })()}
+        <div class="inf-top">
+          ${avatar(i.ig,i.followers)}
+          <div class="inf-id">
+            <div class="inf-h"><a href="https://instagram.com/${i.ig.replace('@','')}" target="_blank" rel="noopener">${esc(i.ig)}</a></div>
+            <div class="inf-sub">${esc(meta)}</div>
+          </div>
+          <div class="inf-acts">
+            <button class="miniico" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg></button>
+            <button class="miniico" title="Remover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13"/></svg></button>
+          </div>
+        </div>
+        <div class="inf-mid">
+          <div><span class="inf-foll num">${fmtN(i.followers)}</span><span class="u">seguidores</span></div>
+          <span class="tier ${cl}">${t}</span>
+        </div>
+        <div class="inf-niches">${nicheTags(i.niche).map(n=>`<span class="chip">${esc(n)}</span>`).join('')}</div>
+        <div class="inf-foot">
+          <span class="inf-val">reel ~ <b>${fmtMoney(reelVal(i.followers))}</b></span>
+          <button class="contact"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Contato</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+  wireInflu();
+}
+
+/* ---------- MARCAS ---------- */
+function renderMarcas(){
+  const counts={}; Object.keys(BRAND_STATUS).forEach(s=>counts[s]=0);
+  BRANDS.forEach(b=>{ if(counts[b.status]!=null)counts[b.status]++; });
+  document.getElementById('v-marcas').innerHTML=`
+  <div class="funnel">
+    ${Object.keys(BRAND_STATUS).map(s=>`<div class="fstage"><div class="fc num">${counts[s]}</div><div class="fl" style="--dotc:${BRAND_STATUS[s]}">${s}</div></div>`).join('')}
+  </div>
+  <div class="toolbar">
+    <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="Buscar marca…"></div>
+    <div class="spacer"></div>
+    <span class="count">${BRANDS.length} marcas no funil</span>
+    <button class="btn ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>Nova marca</button>
+  </div>
+  <div class="card tbl-wrap"><div class="tbl-scroll"><table>
+    <thead><tr><th>Marca</th><th>Status</th><th>Contato</th><th>Últ.</th><th>Conectados</th><th>Retorno / notas</th><th></th></tr></thead>
+    <tbody>${BRANDS.map(b=>{
+      const conn=INF.filter(i=>(i.brand||'').toLowerCase()===b.name.toLowerCase());
+      return `<tr>
+        <td><div class="cell-strong">${brandTag(b.name)}</div><div class="cell-sub">${nicheTags(b.niche).map(esc).join(' · ')}</div></td>
+        <td>${statusChip(b.status,BRAND_STATUS)}</td>
+        <td>${b.contato&&b.contato!=='—'?esc(b.contato):dash}</td>
+        <td>${b.ult?`<span class="num" style="font-size:12.5px">${fmtDate(b.ult)}</span>`:dash}</td>
+        <td>${conn.length?`<div class="chip-row">${conn.map(c=>`<span class="chip">${esc(c.ig)}</span>`).join('')}</div>`:dash}</td>
+        <td style="max-width:240px; color:var(--ink-2)">${esc(b.notas)||dash}</td>
+        <td><div class="row-acts">
+          <button class="miniico" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg></button>
+          <button class="miniico" title="Remover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13"/></svg></button>
+        </div></td>
+      </tr>`;}).join('')}</tbody>
+  </table></div></div>`;
+  wireMarcas();
+}
+
+/* ---------- CAMPANHAS ---------- */
+function renderCamp(){
+  const total=CAMPAIGNS.length;
+  const abertas=CAMPAIGNS.filter(c=>c.status!=='Pago');
+  const aReceber=abertas.reduce((a,b)=>a+b.valor,0);
+  const ev=[];
+  CAMPAIGNS.forEach(c=>{
+    const entregue=['Conteúdo entregue','Aguardando pagamento','Pago'].includes(c.status);
+    if(c.entrega&&!entregue) ev.push({kind:'Entrega',cls:'e',iso:c.entrega,c});
+    if(c.pag&&c.status!=='Pago') ev.push({kind:'Pagamento',cls:'p',iso:c.pag,c});
+  });
+  ev.sort((a,b)=>a.iso.localeCompare(b.iso));
+  const next=ev.slice(0,4);
+  const stOf=d=>d<0?'late':d<=3?'soon':'';
+  const whenT=d=>d<0?`${-d}d atrás`:d===0?'hoje':`em ${d}d`;
+  document.getElementById('v-camp').innerHTML=`
+  <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+    <div class="card kpi">
+      <div class="lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l14-6v14L3 13z"/><path d="M17 7a3 3 0 0 1 0 6"/></svg>Campanhas</div>
+      <div class="val num">${total}</div>
+      <div class="meta"><span class="delta flat">${abertas.length} em aberto</span></div>
+    </div>
+    <div class="card kpi">
+      <div class="lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>A receber</div>
+      <div class="val num">${fmtMoney(aReceber).replace('R$ ','R$')}</div>
+      <div class="meta"><span class="delta warn">a faturar</span></div>
+    </div>
+    <div class="card kpi">
+      <div class="lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Próximo prazo</div>
+      <div class="val num">${next.length?fmtDate(next[0].iso):'—'}</div>
+      <div class="meta"><span class="note">${next.length?next[0].kind.toLowerCase()+' · '+esc(next[0].c.brand):''}</span></div>
+    </div>
+  </div>
+  ${next.length?`<div class="card pad" style="margin-top:14px">
+    <div class="ctitle"><h3>Agenda</h3><span class="count" style="font-family:var(--mono)">${ev.length} prazos</span></div>
+    <div class="tl">${next.map(e=>{const d=daysUntil(e.iso);const st=stOf(d);return `<div class="tl-row ${st}"><div class="tl-top"><span class="tl-kind ${e.cls}">${e.kind}</span><span class="tl-when ${st}">${whenT(d)}</span></div><div class="tl-desc"><b>${esc(e.c.titulo)}</b> · ${brandTag(e.c.brand)}</div></div>`;}).join('')}</div>
+  </div>`:''}
+  <div class="ctitle" style="margin:20px 0 12px"><h3 style="font-size:15px">Todas as campanhas</h3><button class="btn ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>Nova campanha</button></div>
+  <div class="card tbl-wrap"><div class="tbl-scroll"><table>
+    <thead><tr><th>Campanha</th><th>Marca</th><th>Influenciadores</th><th>Valor</th><th>Entrega</th><th>Pagamento</th><th>Status</th><th>NF</th><th></th></tr></thead>
+    <tbody>${CAMPAIGNS.map(c=>{
+      const entregue=['Conteúdo entregue','Aguardando pagamento','Pago'].includes(c.status);
+      return `<tr>
+        <td><div class="cell-strong">${esc(c.titulo)}</div>${c.notas?`<div class="cell-sub">${esc(c.notas)}</div>`:''}</td>
+        <td>${brandTag(c.brand)}</td>
+        <td><div class="chip-row">${c.influs.map(h=>`<span class="chip">${esc(h)}</span>`).join('')}</div></td>
+        <td class="num" style="font-weight:600">${fmtMoney(c.valor)}</td>
+        <td>${dueCell(c.entrega,entregue)}</td>
+        <td>${dueCell(c.pag,c.status==='Pago')}</td>
+        <td>${statusChip(c.status,CAMP_STATUS)}</td>
+        <td>${statusChip(c.nf||'Não emitida',NF_STATUS)}${c.nf_date?`<div class="cell-sub">${fmtDate(c.nf_date)}</div>`:''}${c.nf_file?`<div class="cell-sub"><a href="#" onclick="openNf('${esc(String(c.id))}');return false;" style="color:var(--accent);font-weight:600">ver nota</a></div>`:''}</td>
+        <td><div class="row-acts">
+          <button class="miniico" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg></button>
+          <button class="miniico" title="Remover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13"/></svg></button>
+        </div></td>
+      </tr>`;}).join('')}</tbody>
+  </table></div></div>`;
+}
+
+/* ---------- MATCH ---------- */
+let mState={niche:'',tier:'all',loc:'',budget:'',brand:'',sel:new Set()};
+function matchResults(){
+  let list=INF.filter(i=>{
+    const nN=!mState.niche||nicheTags(i.niche).some(t=>t.toLowerCase().includes(mState.niche.toLowerCase()));
+    const tN=mState.tier==='all'||tierOf(i.followers)[0]===mState.tier;
+    const lN=!mState.loc||(''+i.loc).toLowerCase().includes(mState.loc.toLowerCase())||(LOCS[i.loc]||'').toLowerCase().includes(mState.loc.toLowerCase());
+    return nN&&tN&&lN;
+  }).sort((a,b)=>b.followers-a.followers);
+  const sel=INF.filter(i=>mState.sel.has(i.ig));
+  const totReach=sel.reduce((a,b)=>a+b.followers,0);
+  const totCost=sel.reduce((a,b)=>a+postValue(b),0);
+  const over=mState.budget&&totCost>+mState.budget;
+  return `
+  ${sel.length?`<div class="summary">
+    <div><div class="sv">${sel.length}</div><div class="sl">no casting</div></div>
+    <div><div class="sv">${fmtN(totReach)}</div><div class="sl">alcance</div></div>
+    <div><div class="sv" style="${over?'color:var(--danger)':''}">${fmtMoney(totCost)}</div><div class="sl">custo est.${over?' · acima do orçamento':''}</div></div>
+  </div>
+  <button class="btn" onclick="saveCastingAsCamp()" style="width:100%;justify-content:center;margin-bottom:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px;stroke-width:2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Salvar como campanha</button>`:''}
+  <div class="roster">${list.length?list.map(i=>{
+    const[t,cl]=tierOf(i.followers); const on=mState.sel.has(i.ig);
+    return `<div class="rcard ${on?'sel':''}">
+      ${avatar(i.ig,i.followers)}
+      <div class="rid"><div class="rh">${esc(i.ig)} <span class="tier ${cl}">${t}</span></div><div class="rm">${fmtN(i.followers)} seg · ${esc(i.niche)||'—'} · ${LOCS[i.loc]||i.loc||'—'}</div></div>
+      <div class="rv"><div class="rval">${fmtMoney(postValue(i))}</div><button class="addbtn" onclick="toggleSel('${i.ig}')">${on?'remover':'+ casting'}</button></div>
+    </div>`;}).join(''):`<div class="card pad" style="text-align:center; color:var(--muted)">Nenhum perfil bate com esses filtros.</div>`}</div>`;
+}
+function toggleSel(ig){ mState.sel.has(ig)?mState.sel.delete(ig):mState.sel.add(ig); document.getElementById('matchResults').innerHTML=matchResults(); }
+function saveCastingAsCamp(){
+  const sel=INF.filter(i=>mState.sel.has(i.ig));
+  if(!sel.length)return toast('Monte um casting primeiro','warn');
+  const valor=sel.reduce((a,b)=>a+postValue(b),0);
+  openCampForm({influs:sel.map(i=>i.ig), valor, brand:(mState.brand||'').trim(), status:'A produzir'});
+}
+function renderMatch(){
+  document.getElementById('v-match').innerHTML=`
+  <div class="match">
+    <div class="card pad">
+      <div class="ctitle"><h3>Filtros da campanha</h3></div>
+      <div class="ffield"><label>Nicho</label><input id="m_niche" placeholder="ex: maternidade"></div>
+      <div class="ffield"><label>Porte</label><select id="m_tier"><option value="all">Qualquer</option><option value="nano">Nano</option><option value="micro">Micro</option><option value="macro">Macro</option><option value="mega">Mega</option></select></div>
+      <div class="ffield"><label>Local</label><input id="m_loc" placeholder="ex: Recife (opcional)"></div>
+      <div class="ffield"><label>Orçamento (R$)</label><input id="m_budget" type="number" placeholder="opcional"></div>
+      <div class="ffield"><label>Para a marca (opcional)</label><input id="m_brand" placeholder="ex: RN"></div>
+      <div class="note-strip" style="margin:4px 0 0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z"/></svg><span>Marque perfis pra montar o casting — alcance e custo somam na hora.</span></div>
+    </div>
+    <div id="matchResults">${matchResults()}</div>
+  </div>`;
+  wireMatch();
+}
+function wireMatch(){
+  const map={m_niche:'niche',m_loc:'loc',m_budget:'budget',m_brand:'brand'};
+  Object.entries(map).forEach(([id,k])=>{const el=document.getElementById(id); if(el)el.oninput=()=>{mState[k]=el.value; document.getElementById('matchResults').innerHTML=matchResults();};});
+  const ts=document.getElementById('m_tier'); if(ts)ts.onchange=()=>{mState.tier=ts.value; document.getElementById('matchResults').innerHTML=matchResults();};
+}
+
+/* ---------- tema (persistido) ---------- */
+const MOON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>';
+const SUN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5.3 5.3 6.7 6.7M17.3 17.3l1.4 1.4M18.7 5.3 17.3 6.7M6.7 17.3 5.3 18.7"/></svg>';
+function toggleDark(){const d=document.body.classList.toggle('dark'); try{localStorage.setItem('ph_dark',d?'1':'0')}catch(e){} const b=document.getElementById('darkBtn'); if(b)b.innerHTML=d?SUN:MOON;}
+function applyDark(){let d=false; try{d=localStorage.getItem('ph_dark')==='1'}catch(e){} document.body.classList.toggle('dark',d); const b=document.getElementById('darkBtn'); if(b)b.innerHTML=d?SUN:MOON;}
+function showGatePanel(which){ const g=document.getElementById('gate'); g.style.display='flex'; ['in','ob','sent'].forEach(p=>{const el=document.getElementById('g-'+p); if(el)el.style.display=(p===which)?'':'none';}); }
+function hideGate(){document.getElementById('gate').style.display='none';}
+
+/* ---------- modal + toast (próprios, no lugar de alert/confirm) ---------- */
+const XICO='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+function openModal(html){document.getElementById('modal2').innerHTML=html; document.getElementById('scrim').classList.add('on');}
+function closeModal(){document.getElementById('scrim').classList.remove('on');}
+document.getElementById('scrim').addEventListener('click',e=>{if(e.target.id==='scrim')closeModal();});
+function confirmModal(o){
+  openModal(`<div class="m-h"><h3>${esc(o.title)}</h3><button class="m-close" onclick="closeModal()">${XICO}</button></div>
+  <div class="m-b" style="color:var(--ink-2);line-height:1.55">${o.body||''}</div>
+  <div class="m-f"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn danger" id="cfmBtn">${esc(o.confirmLabel||'Remover')}</button></div>`);
+  document.getElementById('cfmBtn').onclick=()=>{closeModal(); o.onConfirm&&o.onConfirm();};
+}
+function modalForm(title){
+  return `<div class="m-h"><h3>${esc(title)}</h3><button class="m-close" onclick="closeModal()">${XICO}</button></div>
+  <div class="m-b"><div class="grid2">
+    <div class="field"><label>Instagram</label><input placeholder="@usuario"></div>
+    <div class="field"><label>Seguidores</label><input type="number" placeholder="ex: 50000"></div>
+    <div class="field"><label>Local</label><input placeholder="Recife"></div>
+    <div class="field"><label>Geração</label><select><option>Gen Z</option><option>Millennials</option><option>Gen X</option></select></div>
+    <div class="field" style="grid-column:1/3"><label>Nicho</label><input placeholder="Moda e lifestyle"></div>
+  </div></div>
+  <div class="m-f"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="closeModal();toast('Salvo com sucesso','ok')">Salvar</button></div>`;
+}
+function toastIcon(type){
+  if(type==='warn')return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>';
+  if(type==='info')return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>';
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>';
+}
+function toast(msg,type){
+  const c=document.getElementById('toasts'); const el=document.createElement('div');
+  el.className='toast '+(type||''); el.innerHTML=toastIcon(type)+'<span>'+esc(msg)+'</span>'; c.appendChild(el);
+  setTimeout(()=>{el.style.transition='opacity .3s,transform .3s'; el.style.opacity='0'; el.style.transform='translateX(14px)'; setTimeout(()=>el.remove(),300);},2600);
+}
+/* ===== ações reais via delegação (sem tocar nos renders) ===== */
+function currentView(){ const a=document.querySelector('.navitem.active'); return a?a.dataset.go:'painel'; }
+function infByHandle(h){ return INF.find(i=>i.ig===h); }
+document.addEventListener('click',e=>{
+  const ct=e.target.closest('.contact');
+  if(ct){ const card=ct.closest('.inf'); const h=card&&card.querySelector('.inf-h a')?card.querySelector('.inf-h a').textContent.trim():null; const i=h&&infByHandle(h); if(i) openContact(i); return; }
+  const mi=e.target.closest('.miniico');
+  if(mi){ const t=mi.getAttribute('title'); const card=mi.closest('.inf');
+    if(card){ const a=card.querySelector('.inf-h a'); const i=a&&infByHandle(a.textContent.trim()); if(!i)return;
+      if(t==='Remover') confirmModal({title:'Remover influenciador?',body:`<b>${esc(i.ig)}</b> sairá da carteira.`,onConfirm:()=>delInf(i)}); else openInfForm(i); return; }
+    const tr=mi.closest('tr');
+    if(tr){ const v=currentView(); const key=tr.querySelector('.cell-strong')?tr.querySelector('.cell-strong').textContent.trim():'';
+      if(v==='marcas'){ const b=BRANDS.find(x=>x.name===key); if(!b)return; if(t==='Remover') confirmModal({title:'Remover marca?',body:`<b>${esc(b.name)}</b> sairá do funil.`,onConfirm:()=>delBrand(b)}); else openBrandForm(b); }
+      else if(v==='camp'){ const c=CAMPAIGNS.find(x=>x.titulo===key); if(!c)return; if(t==='Remover') confirmModal({title:'Remover campanha?',body:`<b>${esc(c.titulo)}</b> será removida.`,onConfirm:()=>delCamp(c)}); else openCampForm(c); }
+      return; }
+  }
+  const nb=e.target.closest('.btn');
+  if(nb && /Nov[ao]/.test(nb.textContent)){
+    const txt=nb.textContent;
+    if(/perfil|influ/i.test(txt)) openInfForm();
+    else if(/marca/i.test(txt)) openBrandForm();
+    else if(/campanha/i.test(txt)) openCampForm();
+    else { const v=currentView(); v==='marcas'?openBrandForm():v==='camp'?openCampForm():openInfForm(); }
+  }
+});
+
+/* ===== Supabase (multi-agência, isolado por workspace) ===== */
+const BUILTIN_URL='https://efskrnrpqgtgkaiulrpb.supabase.co';
+const BUILTIN_KEY='sb_publishable_BHuFybhaK0yANvm_NcOEJw_3vAsmnAI';
+let SB=null, USER=null, WS=null, WSNAME='', WSCODE='';
+function sbClient(){ if(!SB) SB=supabase.createClient(BUILTIN_URL,BUILTIN_KEY); return SB; }
+function val(id){const e=document.getElementById(id);return e?e.value:'';}
+function setText(id,t){const e=document.getElementById(id);if(e)e.textContent=t;}
+function setMsg(id,txt,err){const e=document.getElementById(id);if(e){e.textContent=txt||'';e.classList.toggle('err',!!err);}}
+
+async function doSignup(){ const email=val('au-email').trim(),pass=val('au-pass'); if(!email||pass.length<6)return setMsg('au-msg','Informe e-mail e senha (mín. 6 caracteres).',true); setMsg('au-msg','Criando conta…'); const {data,error}=await sbClient().auth.signUp({email,password:pass}); if(error)return setMsg('au-msg',error.message,true); if(data.session){USER=data.user;afterAuth();} else { setText('sentEmail',email); setMsg('au-msg',''); showGatePanel('sent'); } }
+async function doLogin(){ const email=val('au-email').trim(),pass=val('au-pass'); if(!email||!pass)return setMsg('au-msg','Informe e-mail e senha.',true); setMsg('au-msg','Entrando…'); const {data,error}=await sbClient().auth.signInWithPassword({email,password:pass}); if(error)return setMsg('au-msg',error.message,true); USER=data.user; afterAuth(); }
+async function logout(){ try{await sbClient().auth.signOut();}catch(e){} location.reload(); }
+async function afterAuth(){ const {data:mem}=await sbClient().from('members').select('workspace_id').limit(1); if(mem&&mem.length){ WS=mem[0].workspace_id; await afterLogin(); } else { showGatePanel('ob'); setMsg('au-msg',''); } }
+async function doCreateWs(){ const name=val('ws-name').trim(); if(!name)return setMsg('ob-msg','Dê um nome à agência.',true); setMsg('ob-msg','Criando…'); const {data,error}=await sbClient().rpc('create_workspace',{p_name:name}); if(error)return setMsg('ob-msg',error.message,true); WS=data; await afterLogin(); }
+async function doJoinWs(){ const code=val('ws-code').trim(); if(!code)return setMsg('ob-msg','Cole o código de convite.',true); setMsg('ob-msg','Entrando…'); const {data,error}=await sbClient().rpc('join_workspace',{p_code:code}); if(error)return setMsg('ob-msg',error.message,true); if(!data)return setMsg('ob-msg','Código não encontrado.',true); WS=data; await afterLogin(); }
+
+async function afterLogin(){ hideGate();
+  try{ const {data:m}=await sbClient().from('members').select('workspace_id, workspaces(name,invite_code)').eq('workspace_id',WS).limit(1); if(m&&m.length&&m[0].workspaces){ WSNAME=m[0].workspaces.name||''; WSCODE=m[0].workspaces.invite_code||''; } }catch(e){}
+  const em=(USER&&USER.email)||''; setText('navEmail',em); setText('navName',WSNAME||em.split('@')[0]||'Conta'); setText('navAva',((WSNAME||em)[0]||'·').toUpperCase());
+  await sbLoadAll(); renderAll(); }
+
+function handleOf(h){ if(typeof h==='string'&&h.startsWith('@'))return h; const i=INF.find(x=>x.id===h); return i?i.ig:h; }
+const norm={
+  inf:d=>({id:d.id,ig:d.ig||'',followers:+d.followers||0,gen:d.gen||'',loc:d.loc||'',niche:d.niche||'',brand:d.brand||'',tiktok:d.tiktok||'',phone:d.phone||'',email:d.email||'',cache:d.cache||'',notas:d.notas||''}),
+  brand:d=>({id:d.id,name:d.name||'',status:d.status||'Prospect',niche:d.niche||'',contato:d.contato||'',ult:d.ult||d.ultimoContato||'',notas:d.notas||''}),
+  camp:d=>({id:d.id,titulo:d.titulo||'',brand:d.brand||'',influs:Array.isArray(d.influs)?d.influs.map(handleOf):[],valor:+d.valor||0,entrega:d.entrega||'',pag:d.pag||d.pagamento||'',status:d.status||'A produzir',nf:d.nf||'Não emitida',nf_date:d.nf_date||'',nf_file:d.nf_file||'',notas:d.notas||''})
+};
+async function sbLoadAll(){ const c=sbClient();
+  const [inf,br,ca,st]=await Promise.all([
+    c.from('influencers').select('id,data').eq('workspace_id',WS),
+    c.from('brands').select('id,data').eq('workspace_id',WS),
+    c.from('campaigns').select('id,data').eq('workspace_id',WS),
+    c.from('settings').select('key,data').eq('workspace_id',WS)]);
+  INF=(inf.data||[]).map(r=>norm.inf(Object.assign({id:r.id},r.data)));
+  BRANDS=(br.data||[]).map(r=>norm.brand(Object.assign({id:r.id},r.data)));
+  CAMPAIGNS=(ca.data||[]).map(r=>norm.camp(Object.assign({id:r.id},r.data)));
+  const rt=(st.data||[]).find(x=>x.key==='rates'); if(rt&&rt.data){RATE_REEL=+rt.data.reel||50;RATE_STORY=+rt.data.story||20;}
+}
+async function sbUpsert(table,rec){ const o=Object.assign({},rec); const id=String(o.id); delete o.id; await sbClient().from(table).upsert({id,workspace_id:WS,data:o}); }
+async function sbDelete(table,id){ await sbClient().from(table).delete().eq('id',String(id)).eq('workspace_id',WS); }
+async function reloadRender(){ await sbLoadAll(); renderAll(); }
+function wireInflu(){
+  const view=document.getElementById('v-influ'); if(!view)return;
+  const search=view.querySelector('.toolbar .search input');
+  const segBtns=view.querySelectorAll('.seg button');
+  function apply(){
+    const q=(search&&search.value||'').trim().toLowerCase();
+    const active=view.querySelector('.seg button.on');
+    const tf=active?active.textContent.trim().toLowerCase():'todos';
+    view.querySelectorAll('.inf').forEach(card=>{
+      const txt=card.textContent.toLowerCase();
+      const tEl=card.querySelector('.tier'); const tier=tEl?tEl.textContent.trim().toLowerCase():'';
+      const okQ=!q||txt.includes(q);
+      const okT=tf==='todos'||tier===tf;
+      card.style.display=(okQ&&okT)?'':'none';
+    });
+  }
+  if(search)search.oninput=apply;
+  segBtns.forEach(b=>b.onclick=()=>{segBtns.forEach(x=>x.classList.remove('on'));b.classList.add('on');apply();});
+}
+function wireMarcas(){
+  const view=document.getElementById('v-marcas'); if(!view)return;
+  const search=view.querySelector('.toolbar .search input');
+  if(search)search.oninput=()=>{const q=search.value.trim().toLowerCase();view.querySelectorAll('tbody tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none';});};
+}
+function wireGlobalSearch(){
+  const gi=document.getElementById('globalSearch'); if(!gi||gi._wired)return; gi._wired=true;
+  gi.oninput=()=>{ const q=gi.value.trim().toLowerCase(); const v=currentView();
+    if(v==='influ'){const s=document.querySelector('#v-influ .toolbar .search input'); if(s){s.value=gi.value; s.oninput&&s.oninput();}}
+    else if(v==='marcas'){const s=document.querySelector('#v-marcas .toolbar .search input'); if(s){s.value=gi.value; s.oninput&&s.oninput();}}
+    else if(v==='camp'){document.querySelectorAll('#v-camp tbody tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none';});}
+  };
+}
+function renderAll(){ renderPainel(); renderInflu(); renderMarcas(); renderCamp(); renderMatch(); renderDS(); updateBadges(); wireGlobalSearch(); const sb=document.getElementById('seedBtn'); if(sb)sb.style.display=(!INF.length&&!BRANDS.length&&!CAMPAIGNS.length)?'':'none'; }
+function updateBadges(){ const map={influ:INF.length,marcas:BRANDS.length,camp:CAMPAIGNS.length}; document.querySelectorAll('.navitem').forEach(n=>{const bd=n.querySelector('.badge'); if(bd&&map[n.dataset.go]!=null)bd.textContent=map[n.dataset.go];}); }
+
+async function loadExample(){ if(!confirm('Carregar 20 perfis + marcas e campanhas de exemplo nesta agência?'))return; for(const i of SEED_INF())await sbUpsert('influencers',i); for(const b of SEED_BRANDS)await sbUpsert('brands',b); for(const c of SEED_CAMPS)await sbUpsert('campaigns',c); await reloadRender(); toast('Exemplo carregado','ok'); }
+
+/* ----- convidar sócia ----- */
+function showInvite(){ openModal(`<div class="m-h"><h3>Convidar para a agência</h3><button class="m-close" onclick="closeModal()">${XICO}</button></div>
+  <div class="m-b" style="line-height:1.6"><p style="margin:0 0 12px;color:var(--ink-2)">Mande este código para sua sócia. Ela cria a conta dela e usa <b>“Entrar com código”</b> para entrar na mesma agência${WSNAME?(' <b>'+esc(WSNAME)+'</b>'):''}.</p>
+  <div class="field" style="margin:0"><label>Código de convite</label><input id="inviteCode" value="${esc(WSCODE||'—')}" readonly onclick="this.select()"></div></div>
+  <div class="m-f"><button class="btn ghost" onclick="closeModal()">Fechar</button><button class="btn" onclick="copyInvite()">Copiar código</button></div>`); }
+function copyInvite(){ const i=document.getElementById('inviteCode'); if(!i)return; i.select(); try{navigator.clipboard.writeText(i.value);}catch(e){} toast('Código copiado','ok'); }
+
+/* ----- tabela de preços ----- */
+async function saveRates(){ RATE_REEL=+val('rate_reel')||50; RATE_STORY=+val('rate_story')||20; try{ await sbClient().from('settings').upsert({workspace_id:WS,key:'rates',data:{reel:RATE_REEL,story:RATE_STORY}}); toast('Tabela de preços salva','ok'); }catch(e){ toast('Erro ao salvar','warn'); } renderPainel(); renderInflu(); renderMatch(); }
+
+/* ----- exportar ----- */
+function exportCsv(){
+  const head=['instagram','tiktok','seguidores','porte','geracao','cidade','nicho','valor_reel_estimado'];
+  const lines=INF.slice().sort((a,b)=>b.followers-a.followers).map(i=>[i.ig,i.tiktok,i.followers,tierOf(i.followers)[0],i.gen,(LOCS[i.loc]||i.loc||''),i.niche,Math.round(postValue(i))].map(c=>`"${(''+c).replace(/"/g,'""')}"`).join(','));
+  const blob=new Blob(['\ufeff'+[head.join(','),...lines].join('\n')],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='casting_'+((WSNAME||'phosphoros').toLowerCase().replace(/\s+/g,'_'))+'.csv'; a.click(); toast('CSV exportado','ok');
+}
+function exportPdf(){
+  const rows=INF.slice().sort((a,b)=>b.followers-a.followers);
+  if(!rows.length)return toast('Nenhum influenciador para exportar','warn');
+  const today=new Date().toLocaleDateString('pt-BR');
+  const body=rows.map(i=>`<tr><td>${esc(i.ig)}</td><td>${fmtN(i.followers)}</td><td>${tierOf(i.followers)[0]}</td><td>${esc(i.niche||'')}</td><td>${esc(LOCS[i.loc]||i.loc||'')}</td><td style="text-align:right">${fmtMoney(postValue(i))}</td></tr>`).join('');
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Casting · ${esc(WSNAME||'Phosphoros')}</title>
+  <style>body{font-family:Arial,Helvetica,sans-serif;color:#13161C;padding:30px}h1{font-size:20px;margin:0}.sub{color:#666;font-size:12px;margin:2px 0 18px}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;border-bottom:2px solid #1B7A57;padding:8px;color:#135A40;text-transform:uppercase;font-size:10px;letter-spacing:.05em}td{padding:7px 8px;border-bottom:1px solid #eee}tr:nth-child(even) td{background:#f6f9f8}.tot{margin-top:16px;font-size:12px;color:#444}</style></head>
+  <body><h1>Carteira de talentos — ${esc(WSNAME||'Phosphoros')}</h1><div class="sub">Gerado em ${today} · ${rows.length} perfis</div>
+  <table><thead><tr><th>Instagram</th><th>Seguidores</th><th>Porte</th><th>Nicho</th><th>Cidade</th><th style="text-align:right">Valor reel</th></tr></thead><tbody>${body}</tbody></table>
+  <div class="tot">Alcance somado: ${fmtN(rows.reduce((a,b)=>a+b.followers,0))} &middot; Valor estimado da carteira: ${fmtMoney(rows.reduce((a,b)=>a+postValue(b),0))}</div>
+  <scr`+`ipt>window.onload=function(){setTimeout(function(){window.print();},250);}<\/scr`+`ipt></body></html>`;
+  const w=window.open('','_blank'); if(!w)return toast('Permita pop-ups para gerar o PDF','warn'); w.document.write(html); w.document.close();
+}
+
+/* ----- formulários ----- */
+const GENS=['','Gen Z','Millennials','Gen X'];
+function field(label,id,v,ph,type){return `<div class="field"><label>${label}</label><input id="${id}" ${type?`type="${type}"`:''} value="${esc(''+(v==null?'':v))}" placeholder="${ph||''}"></div>`;}
+function selField(label,id,opts,cur){return `<div class="field"><label>${label}</label><select id="${id}">${opts.map(o=>`<option ${o===cur?'selected':''}>${esc(o)}</option>`).join('')}</select></div>`;}
+function areaField(label,id,v){return `<div class="field" style="grid-column:1/3"><label>${label}</label><textarea id="${id}" rows="2">${esc(v||'')}</textarea></div>`;}
+
+function openInfForm(i){ i=i||{}; openModal(`<div class="m-h"><h3>${i.id?'Editar influenciador':'Novo influenciador'}</h3><button class="m-close" onclick="closeModal()">${XICO}</button></div>
+  <div class="m-b"><div class="grid2">
+    ${field('Instagram','f_ig',i.ig,'@usuario')}${field('Seguidores','f_foll',i.followers,'ex: 50000','number')}
+    ${field('TikTok','f_tt',i.tiktok,'@usuario')}${field('WhatsApp / telefone','f_ph',i.phone,'ex: 5581988887777')}
+    ${field('Cidade','f_loc',i.loc,'Recife')}${selField('Geração','f_gen',GENS,i.gen||'')}
+    ${field('E-mail','f_email',i.email,'contato@email.com','email')}${field('Cachê R$ (opcional)','f_cache',i.cache,'sobrescreve estimativa','number')}
+    ${field('Marca conectada','f_brand',i.brand,'opcional')}${field('Nicho','f_niche',i.niche,'Moda e lifestyle')}
+    ${areaField('Observações','f_notas',i.notas)}
+  </div></div>
+  <div class="m-f"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" id="saveBtn">Salvar</button></div>`);
+  document.getElementById('saveBtn').onclick=async()=>{ let ig=val('f_ig').trim(); if(ig&&!ig.startsWith('@'))ig='@'+ig; if(!ig)return toast('Informe o Instagram','warn');
+    const rec={id:i.id||('i'+Date.now()),ig,followers:+val('f_foll')||0,tiktok:val('f_tt').trim(),phone:val('f_ph').trim(),loc:val('f_loc').trim(),gen:val('f_gen'),email:val('f_email').trim(),cache:val('f_cache').trim(),brand:val('f_brand').trim(),niche:val('f_niche').trim(),notas:val('f_notas').trim()};
+    closeModal(); await sbUpsert('influencers',rec); await reloadRender(); toast('Perfil salvo','ok'); };
+}
+function delInf(i){ sbDelete('influencers',i.id).then(reloadRender).then(()=>toast('Influenciador removido','ok')); }
+
+function openBrandForm(b){ b=b||{}; openModal(`<div class="m-h"><h3>${b.id?'Editar marca':'Nova marca'}</h3><button class="m-close" onclick="closeModal()">${XICO}</button></div>
+  <div class="m-b"><div class="grid2">
+    ${field('Marca','f_name',b.name,'Nome da marca')}${selField('Status','f_status',Object.keys(BRAND_STATUS),b.status||'Prospect')}
+    ${field('Contato','f_contato',b.contato,'Nome / cargo')}${field('Último contato','f_ult',b.ult,'','date')}
+    ${field('Nicho','f_bniche',b.niche,'Moda, Beauty')}
+    ${areaField('Retorno / notas','f_bnotas',b.notas)}
+  </div></div>
+  <div class="m-f"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" id="saveBtn">Salvar</button></div>`);
+  document.getElementById('saveBtn').onclick=async()=>{ const name=val('f_name').trim(); if(!name)return toast('Informe o nome da marca','warn');
+    const rec={id:b.id||('b'+Date.now()),name,status:val('f_status'),contato:val('f_contato').trim(),ult:val('f_ult'),niche:val('f_bniche').trim(),notas:val('f_bnotas').trim()};
+    closeModal(); await sbUpsert('brands',rec); await reloadRender(); toast('Marca salva','ok'); };
+}
+function delBrand(b){ sbDelete('brands',b.id).then(reloadRender).then(()=>toast('Marca removida','ok')); }
+
+function openCampForm(c){ c=c||{}; const sel=new Set(c.influs||[]);
+  const roster=INF.slice().sort((a,b)=>b.followers-a.followers).map(i=>`<label class="rcard" style="cursor:pointer"><input type="checkbox" value="${esc(i.ig)}" ${sel.has(i.ig)?'checked':''} style="width:auto"><div class="rid"><div class="rh">${esc(i.ig)}</div><div class="rm">${fmtN(i.followers)} seg · ${esc(i.niche)||'—'}</div></div></label>`).join('');
+  openModal(`<div class="m-h"><h3>${c.id?'Editar campanha':'Nova campanha'}</h3><button class="m-close" onclick="closeModal()">${XICO}</button></div>
+  <div class="m-b"><div class="grid2">
+    ${field('Título','f_tit',c.titulo,'Ex: Coleção Inverno')}${field('Marca','f_cbrand',c.brand,'Nome da marca')}
+    ${field('Valor R$','f_valor',c.valor,'ex: 4000','number')}${selField('Status','f_cstatus',Object.keys(CAMP_STATUS),c.status||'A produzir')}
+    ${field('Entrega','f_entrega',c.entrega,'','date')}${field('Pagamento','f_pag',c.pag,'','date')}
+    <div class="field" style="grid-column:1/3"><label>Nota fiscal</label>
+      <div class="grid2" style="gap:10px;margin:0">
+        <select id="f_nf"><option ${(c.nf||'Não emitida')==='Não emitida'?'selected':''}>Não emitida</option><option ${c.nf==='Emitida'?'selected':''}>Emitida</option></select>
+        <input id="f_nfdate" type="date" value="${esc(c.nf_date||'')}" title="Data de emissão">
+      </div>
+      <div style="margin-top:8px"><input type="file" id="f_nffile" accept="application/pdf,image/*" style="padding:6px">
+        ${c.nf_file?`<div style="margin-top:7px;font-size:12.5px"><a href="#" onclick="openNf('${esc(String(c.id))}');return false;" style="color:var(--accent);font-weight:600">Ver nota anexada</a> &nbsp;·&nbsp; <label style="color:var(--muted);font-weight:500"><input type="checkbox" id="f_nfremove" style="width:auto"> remover anexo</label></div>`:'<div style="margin-top:5px;font-size:11.5px;color:var(--muted)">PDF ou imagem · opcional</div>'}
+      </div>
+    </div>
+    ${areaField('Observações','f_cnotas',c.notas)}
+    <div class="field" style="grid-column:1/3"><label>Influenciadores no casting</label><div class="roster" style="max-height:210px;overflow:auto">${roster||'<span class="muted">Cadastre influenciadores primeiro.</span>'}</div></div>
+  </div></div>
+  <div class="m-f"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" id="saveBtn">Salvar</button></div>`);
+  document.getElementById('saveBtn').onclick=async()=>{ const titulo=val('f_tit').trim(); if(!titulo)return toast('Informe o título','warn');
+    const influs=[].slice.call(document.querySelectorAll('#modal2 .roster input:checked')).map(x=>x.value);
+    const campId=c.id||('c'+Date.now());
+    let nf_file=c.nf_file||'';
+    const rmv=document.getElementById('f_nfremove'); const fileEl=document.getElementById('f_nffile');
+    const btn=document.getElementById('saveBtn');
+    if(rmv&&rmv.checked&&nf_file){ try{await sbClient().storage.from('notas').remove([nf_file]);}catch(e){} nf_file=''; }
+    if(fileEl&&fileEl.files&&fileEl.files[0]){ btn.textContent='Enviando nota…'; btn.disabled=true; const up=await uploadNf(campId,fileEl.files[0]); btn.disabled=false; btn.textContent='Salvar'; if(up){ if(nf_file&&up!==nf_file){try{await sbClient().storage.from('notas').remove([nf_file]);}catch(e){}} nf_file=up; } else { return; } }
+    const rec={id:campId,titulo,brand:val('f_cbrand').trim(),valor:+val('f_valor')||0,status:val('f_cstatus'),entrega:val('f_entrega'),pag:val('f_pag'),nf:val('f_nf'),nf_date:val('f_nfdate'),nf_file,notas:val('f_cnotas').trim(),influs};
+    closeModal(); await sbUpsert('campaigns',rec); await reloadRender(); toast('Campanha salva','ok'); };
+}
+function delCamp(c){ sbDelete('campaigns',c.id).then(reloadRender).then(()=>toast('Campanha removida','ok')); }
+
+/* ----- campanhas de cada influenciador ----- */
+function infCamps(ig){ return CAMPAIGNS.filter(c=>Array.isArray(c.influs)&&c.influs.includes(ig)); }
+
+/* ----- painel lateral (roster de campanha) ----- */
+function openCampPanel(campId){
+  const c=CAMPAIGNS.find(x=>String(x.id)===String(campId)); if(!c)return;
+  const handles=c.influs||[];
+  const items=handles.map(h=>{const i=INF.find(x=>x.ig===h); return i||{ig:h,followers:0,niche:'',loc:''};});
+  items.sort((a,b)=>b.followers-a.followers);
+  const totReach=items.reduce((a,b)=>a+b.followers,0);
+  const totVal=items.reduce((a,b)=>a+postValue(b),0);
+  document.getElementById('spTitle').innerHTML=`<span style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);display:block;margin-bottom:2px">Campanha</span>${esc(c.titulo)}`;
+  document.getElementById('spBody').innerHTML=`
+    <div style="display:flex;gap:16px;margin-bottom:16px;font-size:12.5px;color:var(--ink-2)">
+      <span><b class="num" style="font-size:16px;color:var(--ink)">${items.length}</b> perfis</span>
+      <span><b class="num" style="font-size:16px;color:var(--ink)">${fmtN(totReach)}</b> alcance</span>
+      <span><b class="num" style="font-size:16px;color:var(--accent)">${fmtMoney(totVal)}</b> valor</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">${items.map(i=>{
+      const [t,cl]=tierOf(i.followers);
+      const meta=[LOCS[i.loc]||i.loc||'',i.niche||''].filter(Boolean).join(' · ')||'';
+      return `<div class="sp-item">
+        ${avatar(i.ig,i.followers)}
+        <div class="sp-info"><div class="sp-handle">${esc(i.ig)}</div><div class="sp-meta">${fmtN(i.followers)} seg · <span class="tier ${cl}" style="font-size:10px">${t}</span>${meta?' · '+esc(meta):''}</div></div>
+        <div class="sp-val">${fmtMoney(postValue(i))}</div>
+      </div>`;
+    }).join('')}</div>
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--ink-2)">
+      Status: ${statusChip(c.status,CAMP_STATUS)} &nbsp; Marca: <b>${esc(c.brand||'—')}</b>
+      ${c.entrega?` &nbsp; Entrega: <b>${fmtDate(c.entrega)}</b>`:''}
+      ${c.notas?`<div style="margin-top:8px;color:var(--ink)">${esc(c.notas)}</div>`:''}
+    </div>`;
+  document.getElementById('sidePanel').classList.add('open');
+  document.getElementById('spOverlay').classList.add('open');
+}
+function closeSidePanel(){
+  document.getElementById('sidePanel').classList.remove('open');
+  document.getElementById('spOverlay').classList.remove('open');
+}
+async function uploadNf(campId,file){
+  if(file.size>10*1024*1024){ toast('Arquivo muito grande (máx. 10MB)','warn'); return null; }
+  const ext=((file.name.split('.').pop())||'pdf').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const path=`${WS}/${campId}_${Date.now()}.${ext}`;
+  const {error}=await sbClient().storage.from('notas').upload(path,file,{upsert:true});
+  if(error){ toast('Falha no upload: '+error.message,'warn'); return null; }
+  return path;
+}
+async function openNf(campId){
+  const c=CAMPAIGNS.find(x=>String(x.id)===String(campId)); if(!c||!c.nf_file)return;
+  const {data,error}=await sbClient().storage.from('notas').createSignedUrl(c.nf_file,3600);
+  if(error||!data){ toast('Não consegui abrir a nota','warn'); return; }
+  window.open(data.signedUrl,'_blank');
+}
+
+function openContact(i){ const u=i.ig.replace('@',''); const wa=(i.phone||'').replace(/\D/g,''); const items=[
+    `<a href="https://ig.me/m/${u}" target="_blank" rel="noopener">💬 Instagram Direct (DM)</a>`,
+    `<a href="https://instagram.com/${u}" target="_blank" rel="noopener">Abrir perfil no Instagram</a>`];
+  if(wa)items.push(`<a href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>`);
+  if(i.tiktok)items.push(`<a href="https://tiktok.com/@${i.tiktok.replace('@','')}" target="_blank" rel="noopener">TikTok</a>`);
+  if(i.email)items.push(`<a href="mailto:${i.email}">E-mail</a>`);
+  openModal(`<div class="m-h"><h3>Contato · ${esc(i.ig)}</h3><button class="m-close" onclick="closeModal()">${XICO}</button></div><div class="m-b"><div class="ds-stack clinks" style="font-weight:600;gap:10px">${items.map(h=>`<div>${h}</div>`).join('')}</div></div>`);
+}
+
+function persistAccent(i){try{localStorage.setItem('ph_accent',i)}catch(e){}}
+function loadAccent(){let i=3;try{const v=localStorage.getItem('ph_accent');if(v!=null)i=+v;}catch(e){}return i;}
+
+async function boot(){ applyDark(); if(typeof supabase==='undefined'){document.getElementById('gate').style.display='flex';setMsg('au-msg','Falha ao carregar Supabase. Recarregue a página.',true);return;} const c=sbClient(); const {data:{session}}=await c.auth.getSession(); if(session){USER=session.user; await afterAuth();} else { showGatePanel('in'); } }
+
+/* ---------- COMPONENTES ---------- */
+function renderDS(){
+  const plus='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>';
+  const mail='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';
+  const avs=[['@N',5000],['@M',30000],['@C',150000],['@G',1500000]].map(a=>avatar(a[0],a[1])).join('');
+  document.getElementById('v-ds').innerHTML=`
+  <p class="ds-lead">Referência viva dos componentes da Direção C — tudo herda os mesmos tokens, então segue o <b>acento</b> e o <b>dark mode</b> automaticamente. <b>Clique pra testar</b> botões, modais e toasts.</p>
+  <div class="ds-grid">
+    <div class="ds-card"><h4>Tipografia</h4>
+      <div class="type-spec"><span class="tn">Display</span><span style="font-size:23px;font-weight:600;letter-spacing:-.02em">Gestão de talentos</span></div>
+      <div class="type-spec"><span class="tn">Título</span><span style="font-size:16px;font-weight:700">Coleção Inverno</span></div>
+      <div class="type-spec"><span class="tn">Corpo</span><span style="font-size:14px">Texto de interface padrão</span></div>
+      <div class="type-spec"><span class="tn">Número</span><span class="num" style="font-size:21px;font-weight:600">R$ 68.650</span></div>
+      <div class="type-spec"><span class="tn">Micro</span><span style="font-size:11.5px;color:var(--muted)">legenda · metadado</span></div>
+    </div>
+    <div class="ds-card"><h4>Botões</h4>
+      <div class="ds-row"><button class="btn">${plus}Primário</button><button class="btn ghost">Secundário</button></div>
+      <div class="ds-row"><button class="btn danger">Perigo</button><button class="contact">${mail}Contato</button><button class="addbtn">+ casting</button></div>
+      <div class="ds-row"><span class="link">link de ação →</span></div>
+    </div>
+    <div class="ds-card"><h4>Campos</h4>
+      <div class="ds-stack">
+        <div class="field" style="margin:0"><label>Rótulo</label><input placeholder="Digite aqui…"></div>
+        <div class="field" style="margin:0"><label>Seleção</label><select><option>Opção A</option><option>Opção B</option></select></div>
+      </div>
+    </div>
+    <div class="ds-card"><h4>Porte · avatar</h4>
+      <div class="ds-row"><span class="tier t-nano">nano</span><span class="tier t-micro">micro</span><span class="tier t-macro">macro</span><span class="tier t-mega">mega</span></div>
+      <div class="ds-row" style="margin-top:14px">${avs}</div>
+    </div>
+    <div class="ds-card"><h4>Status · marcas</h4>
+      <div class="ds-row">${Object.keys(BRAND_STATUS).map(s=>statusChip(s,BRAND_STATUS)).join('')}</div>
+    </div>
+    <div class="ds-card"><h4>Status · campanhas + chips</h4>
+      <div class="ds-row">${Object.keys(CAMP_STATUS).map(s=>statusChip(s,CAMP_STATUS)).join('')}</div>
+      <div class="ds-row" style="margin-top:12px"><span class="chip">lifestyle</span><span class="chip">beauty</span>${brandTag('RN')}${brandTag('Café Norte')}</div>
+    </div>
+    <div class="ds-card"><h4>Prazos</h4>
+      <div class="ds-stack">
+        <div class="ds-row"><span class="due ok">10/06 · em 10d</span><span class="ds-note">no prazo</span></div>
+        <div class="ds-row"><span class="due soon">04/06 · em 3d</span><span class="ds-note">próximo</span></div>
+        <div class="ds-row"><span class="due late">28/05 · atrasado</span><span class="ds-note">atrasado</span></div>
+      </div>
+    </div>
+    <div class="ds-card"><h4>Feedback · toasts & modais</h4>
+      <div class="ds-row">
+        <button class="btn ghost" onclick="toast('Salvo com sucesso','ok')">Sucesso</button>
+        <button class="btn ghost" onclick="toast('Pagamento em 3 dias','warn')">Aviso</button>
+        <button class="btn ghost" onclick="toast('Casting sincronizado','info')">Info</button>
+      </div>
+      <div class="ds-row" style="margin-top:11px">
+        <button class="btn" onclick="confirmModal({title:'Remover registro?',body:'Essa ação não pode ser desfeita.',onConfirm:()=>toast('Registro removido','ok')})">Abrir modal de confirmação</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------- nav ---------- */
+const TITLES={painel:["Painel","· visão geral"],influ:["Influenciadores","· carteira de talentos"],marcas:["Marcas","· funil de contato"],camp:["Campanhas","· prazos e pagamentos"],match:["Match","· montar casting"],ds:["Componentes","· referência da Direção C"]};
+function go(t){
+  document.querySelectorAll('.navitem').forEach(n=>n.classList.toggle('active',n.dataset.go===t));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.getElementById('v-'+t).classList.add('on');
+  document.getElementById('ptitle').textContent=TITLES[t][0];
+  document.getElementById('pcrumb').textContent=TITLES[t][1];
+}
+document.querySelectorAll('.navitem').forEach(n=>n.addEventListener('click',()=>go(n.dataset.go)));
+
+/* ---------- seletor de acento (controle da concept) ---------- */
+const ACCENTS=[
+  {n:'Petróleo',       a:'#1E6E66', d:'#14534D', s:'#DCEBE8', t:'#EFF6F4'},
+  {n:'Cerceta escura', a:'#0F5E5A', d:'#0A4744', s:'#D7E9E7', t:'#EDF5F4'},
+  {n:'Petróleo azul',  a:'#205C68', d:'#163F47', s:'#DBE9EC', t:'#EFF5F6'},
+  {n:'Esmeralda',      a:'#1B7A57', d:'#135A40', s:'#DBEDE3', t:'#EFF7F2'},
+  {n:'Pinheiro',       a:'#1E5A45', d:'#14442F', s:'#DCEAE2', t:'#EFF6F1'},
+  {n:'Floresta',       a:'#2F6B45', d:'#224E33', s:'#DFEBE0', t:'#F1F6F0'},
+  {n:'Sage profundo',  a:'#4A6356', d:'#374A40', s:'#E5EBE7', t:'#F1F5F2'},
+  {n:'Musgo',          a:'#546B4E', d:'#3F523B', s:'#E7EDE3', t:'#F2F5EF'},
+  {n:'Oliva',          a:'#5C6A3A', d:'#45512B', s:'#EAEDDD', t:'#F4F6EC'},
+];
+function setAccent(i){
+  i=Math.max(0,Math.min(ACCENTS.length-1,+i||0));
+  const c=ACCENTS[i], r=document.documentElement.style;
+  r.setProperty('--accent',c.a); r.setProperty('--accent-deep',c.d);
+  r.setProperty('--accent-soft',c.s); r.setProperty('--accent-tint',c.t);
+  document.querySelectorAll('.sw').forEach((s,j)=>s.classList.toggle('on',j===i));
+  const nm=document.getElementById('acName'); if(nm) nm.textContent=c.n;
+  persistAccent(i);
+}
+(function lockAccent(){ const c=ACCENTS[3], r=document.documentElement.style; r.setProperty('--accent',c.a); r.setProperty('--accent-deep',c.d); r.setProperty('--accent-soft',c.s); r.setProperty('--accent-tint',c.t); })();
+
+boot();
+</script>
+</body>
+</html>
